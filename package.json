@@ -1,0 +1,14 @@
+{
+  "name": "galion-research",
+  "private": true,
+  "type": "module",
+  "description": "Galion Research, a voice of Galion One. Hermes is the research agent.",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT"
+}
