@@ -5,7 +5,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { RESEARCH_CUES, cueHz } from "../src/cues.js";
+import { RESEARCH_CUES, audible, cueHz } from "../src/cues.js";
 import { HELPERS_LOCAL, HELPERS_RUNNING, notebookPiles, researchState } from "../src/desk.js";
 import {
   DEFAULT_URL,
@@ -58,7 +58,15 @@ describe("page", () => {
       'id="voice-dot"',
       'aria-label="Voice"',
       "function markInner",
-      'edge:"#E8E8ED"',
+      'edge:"#0B5FA5"',
+      'ice:"#B8E8FF"',
+      'core:"#58C4FF"',
+      'data-silence="off"',
+      'id="silence"',
+      ">Silence<",
+      'getAttribute("data-silence")==="on"',
+      'aria-expanded="false"',
+      'id="work"',
       "Galion Research is the Hermes research app, a voice of Galion One",
       'id="add-file"',
       'id="add-image"',
@@ -103,6 +111,12 @@ describe("page", () => {
       assert.ok(html.includes(`hz:${cue.hz}`), String(cue.hz));
       assert.equal(cueHz(cue.ratio), cue.hz);
     }
+    assert.equal(audible("off"), true);
+    assert.equal(audible(false), true);
+    assert.equal(audible("on"), false);
+    assert.equal(audible(true), false);
+    assert.equal(audible("1"), false);
+    assert.equal(html.includes('if(silenceOn()) return;'), true);
   });
 });
 
