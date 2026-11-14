@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
@@ -146,7 +147,7 @@ describe("licence and archive", () => {
         if (entry.name === "node_modules" || entry.name === ".git") continue;
         const full = path.join(dir, entry.name);
         if (entry.isDirectory()) await walk(full);
-        else if (/\.(js|md|html|yml|json|example)$/.test(entry.name) || entry.name === "LICENSE") files.push(full);
+        else if (/\.(js|md|html|yml|json|example|service|sh)$/.test(entry.name) || entry.name === "LICENSE") files.push(full);
       }
     }
     await walk(ROOT);
@@ -268,6 +269,15 @@ describe("server", () => {
       const one = await fetch(`${base}/one`, { redirect: "manual" });
       assert.equal(one.status, 302);
       assert.equal(one.headers.get("location"), "https://galion.app/one");
+      const health = await fetch(`${base}/health`);
+      const healthBody = await health.json();
+      assert.equal(health.status, 200);
+      assert.equal(healthBody.ok, true);
+      assert.equal(healthBody.service, "galion-research");
+      assert.equal(healthBody.bind, "127.0.0.1");
+      assert.equal(JSON.stringify(healthBody).includes(KEY), false);
+      const healthPost = await fetch(`${base}/health`, { method: "POST" });
+      assert.equal(healthPost.status, 404);
     });
   });
 
@@ -300,6 +310,9 @@ describe("server", () => {
         assert.equal(ready.key, "set");
         assert.equal(ready.status, "Idle");
         assert.equal(JSON.stringify(ready).includes(KEY), false);
+        const health = await (await fetch(`${base}/health`)).json();
+        assert.equal(health.ok, true);
+        assert.equal(JSON.stringify(health).includes(KEY), false);
         const asked = await (
           await fetch(`${base}/research/ask`, {
             method: "POST",
@@ -441,6 +454,83 @@ describe("server", () => {
     assert.equal(oneTarget("https://galion.app/one"), "https://galion.app/one");
   });
 });
+
+describe("deploy kit", () => {
+  it("keeps secrets out of the env examples and pins the unit to loopback", async () => {
+    for (const name of [".env.example", "deploy/research.env.example"]) {
+      const text = await readFile(path.join(ROOT, name), "utf8");
+      for (const line of text.split("\n")) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("#")) continue;
+        assert.equal(/^GALION_LLM_KEY=.+$/.test(trimmed), false, `${name}: ${trimmed}`);
+      }
+    }
+    const unit = await readFile(path.join(ROOT, "deploy/systemd/galion-research.service"), "utf8");
+    for (const line of [
+      "127.0.0.1:8787",
+      "Environment=PORT=8787",
+      "User=galion",
+      "NoNewPrivileges=yes",
+      "ProtectSystem=strict",
+      "PrivateTmp=yes",
+      "ProtectHome=yes",
+      "IPAddressDeny=any",
+      "IPAddressAllow=localhost",
+      "MemoryMax=256M",
+      "Restart=on-failure",
+    ]) {
+      assert.ok(unit.includes(line), line);
+    }
+    assert.equal(unit.includes("GALION_LLM_KEY="), false);
+    const doc = await readFile(path.join(ROOT, "docs/DEPLOY.md"), "utf8");
+    assert.match(doc, /release\/<sha>/);
+    assert.match(doc, /\/opt\/galion\/research\/current/);
+    assert.match(doc, /rollback/i);
+    assert.match(doc, /127\.0\.0\.1:8787/);
+  });
+
+  it("refuses to execute the health check or the release dry-run", async () => {
+    const health = path.join(ROOT, "scripts/check-health.js");
+    const refused = spawnSync(process.execPath, [health, "--execute"], { encoding: "utf8" });
+    assert.equal(refused.status, 2);
+    assert.match(refused.stderr, /refusing/);
+    const badPort = spawnSync(process.execPath, [health, "http://127.0.0.1:8787/health"], { encoding: "utf8" });
+    assert.equal(badPort.status, 2);
+    const release = path.join(ROOT, "scripts/deploy/release-dryrun.sh");
+    const blocked = spawnSync("bash", [release, "--execute"], { encoding: "utf8" });
+    assert.equal(blocked.status, 2);
+    assert.match(blocked.stderr, /refusing/);
+    const printed = spawnSync("bash", [release, "466b784b80b40a2efe1798fdfbb377c6d5c80144"], { encoding: "utf8" });
+    assert.equal(printed.status, 0, printed.stderr);
+    assert.match(printed.stdout, /release\/466b784b80b40a2efe1798fdfbb377c6d5c80144/);
+    assert.match(printed.stdout, /\/opt\/galion\/research\/current -> /);
+    assert.match(printed.stdout, /rollback:/);
+    assert.match(printed.stdout, /no connection will be made/);
+    await withServer({}, async (base) => {
+      const port = new URL(base).port;
+      const ok = await run(process.execPath, [health, port]);
+      assert.equal(ok.status, 0, ok.stderr);
+      assert.match(ok.stdout, new RegExp(`ok http://127\\.0\\.0\\.1:${port}/health`));
+    });
+  });
+});
+
+function run(command, args) {
+  return new Promise((resolve) => {
+    const child = spawn(command, args);
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    child.on("close", (status) => resolve({ status, stdout, stderr }));
+  });
+}
 
 function closed(server) {
   return new Promise((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())));

@@ -1,0 +1,53 @@
+# Galion Research desk. Loopback only.
+# src/server.js binds 127.0.0.1. This unit pins PORT=8787, so the listener is 127.0.0.1:8787.
+# The key is not set here. A human puts it in /etc/galion/research.env on the host.
+# MemoryMax is the 256M ceiling named for the galion-voice unit draft. It is a cap, not a measured size.
+[Unit]
+Description=Galion Research desk (loopback 127.0.0.1:8787)
+After=network.target
+Documentation=file:/opt/galion/research/current/docs/DEPLOY.md
+
+[Service]
+Type=simple
+User=galion
+Group=galion
+WorkingDirectory=/opt/galion/research/current
+ExecStart=/usr/bin/node src/server.js
+EnvironmentFile=-/etc/galion/research.env
+Environment=PORT=8787
+Environment=HOME=/var/lib/galion-research
+StateDirectory=galion-research
+StateDirectoryMode=0700
+UMask=0077
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RemoveIPC=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_INET AF_INET6 AF_NETLINK
+CapabilityBoundingSet=
+AmbientCapabilities=
+DevicePolicy=closed
+IPAddressDeny=any
+IPAddressAllow=localhost
+MemoryMax=256M
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=galion-research
+
+[Install]
+WantedBy=multi-user.target

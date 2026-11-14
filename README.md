@@ -64,10 +64,11 @@ If the galion-one-voice origin is down and Hermes does not answer, the desk cont
 ## Tests and CI
 
 ```sh
+npm run build
 npm test
 ```
 
-Node 22, no packages. The tests cover the page, the local mark, a loopback Hermes turn that keeps the key out of the reply, citation lines, the notebook piles, Silence, and the forward to a `/research` origin.
+Node 22, no packages. `npm run build` is a syntax check of the sources, the health check, and the tests. There is no bundle step. The tests cover the page, the local mark, a loopback Hermes turn that keeps the key out of the reply, citation lines, the notebook piles, Silence, the forward to a `/research` origin, `GET /health`, and the deploy kit.
 
 Desktop and phone screenshots, plus the accessibility checks:
 
@@ -75,7 +76,11 @@ Desktop and phone screenshots, plus the accessibility checks:
 cd e2e && npm ci && npx playwright test
 ```
 
-GitHub Actions (`.github/workflows/ci.yml`) runs `npm test` and the Playwright suite on push and on pull request. This draft does not deploy.
+GitHub Actions (`.github/workflows/ci.yml`) runs `npm run build`, `npm test`, and the Playwright suite on push and on pull request. This draft does not deploy.
+
+## Deploy kit
+
+The desk is not deployed. The kit in this repo is the hardened unit, the env example, the health check, and the release layout. See [docs/DEPLOY.md](docs/DEPLOY.md). The scripts refuse `--execute`. Nothing in this repository connects to a host.
 
 ## Licence
 
