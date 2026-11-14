@@ -1,0 +1,13 @@
+{
+  "name": "galion-research-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Playwright checks for the Galion Research desk. Desktop, phone, and accessibility.",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.65.1"
+  }
+}

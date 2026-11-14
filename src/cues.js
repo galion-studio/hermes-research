@@ -18,3 +18,8 @@ export function cueHz(ratio, a = RESEARCH_A) {
   const [num, den] = ratio.split(":").map(Number);
   return (a * num) / den;
 }
+
+// Silence mode. "on" and "1" (?silence=1) keep every cue quiet.
+export function audible(silence) {
+  return silence !== true && silence !== "on" && silence !== "1";
+}

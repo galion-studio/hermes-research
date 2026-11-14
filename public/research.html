@@ -35,7 +35,7 @@ SOFTWARE.
 <meta name="color-scheme" content="dark">
 <title>Galion Research</title>
 <style>
-:root{--ground:#0B0F14;--ink:#E6EDF3;--sky:#58C4FF;--ice:#B8E8FF;--ocean:#0B5FA5;--amber:var(--sky);--violet:var(--ocean)}
+:root{--ground:#0B0F14;--ink:#E6EDF3;--sky:#58C4FF;--ice:#B8E8FF;--ocean:#0B5FA5;--quiet:color-mix(in srgb, #E6EDF3 78%, #0B0F14);--amber:var(--sky);--violet:var(--ocean)}
 html,body{margin:0;min-height:100%;background:var(--ground);color:var(--ink)}
 body{min-height:100vh;min-height:100dvh;
   background:
@@ -46,41 +46,45 @@ body{min-height:100vh;min-height:100dvh;
 .desk{width:min(1080px,calc(100vw - 96px));margin:0 auto;padding:32px 0 72px}
 .top{display:flex;align-items:center;justify-content:space-between;margin:0 0 36px}
 #to-one,.voice-name{font:13px/1 system-ui,sans-serif;letter-spacing:.16em;text-transform:uppercase;text-decoration:none}
-#to-one{color:color-mix(in srgb, var(--ink) 72%, transparent)}
+#to-one{color:var(--quiet)}
 #to-one:hover,#to-one:focus-visible{color:var(--ink);outline:none}
 .voice-name{margin:0;color:color-mix(in srgb, var(--ink) 88%, transparent)}
 #handoff{margin:-18px 0 22px;font:14px/1.4 system-ui,sans-serif;color:color-mix(in srgb, var(--amber) 80%, var(--ink))}
 .ask{display:flex;align-items:center;gap:22px}
 .field{position:relative;flex:1;min-width:0;border-radius:32px;border:1px solid transparent;padding:26px 26px 14px;
   background:
-    linear-gradient(color-mix(in srgb, var(--ground) 82%, transparent), color-mix(in srgb, var(--ground) 82%, transparent)) padding-box,
+    linear-gradient(var(--ground), var(--ground)) padding-box,
     linear-gradient(135deg, color-mix(in srgb, var(--ice) 80%, transparent), color-mix(in srgb, var(--sky) 70%, transparent) 55%, color-mix(in srgb, var(--ocean) 85%, transparent)) border-box;
+  background-color:var(--ground);
   box-shadow:0 28px 80px rgba(0,0,0,.35)}
 .field:focus-within{box-shadow:0 28px 80px rgba(0,0,0,.35), 0 0 0 1px color-mix(in srgb, var(--amber) 28%, transparent)}
 textarea{display:block;width:100%;box-sizing:border-box;min-height:132px;margin:0;padding:0 2px;border:0;resize:none;
   background:transparent;color:var(--ink);font:28px/1.35 system-ui,sans-serif;letter-spacing:-.02em;outline:none}
-textarea::placeholder{color:color-mix(in srgb, var(--ink) 36%, transparent)}
-.tools{display:flex;align-items:center;gap:8px;margin-top:8px}
+textarea::placeholder{color:color-mix(in srgb, var(--ice) 72%, var(--ground))}
+.tools{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:8px}
 .tools button,.voice{appearance:none;display:grid;place-items:center;padding:0;cursor:pointer;color:var(--ink)}
-.tools button{width:40px;height:40px;border-radius:999px;border:1px solid color-mix(in srgb, var(--ink) 16%, transparent);background:transparent;color:color-mix(in srgb, var(--ink) 72%, transparent)}
-.tools button:hover,.tools button:focus-visible{border-color:color-mix(in srgb, var(--amber) 70%, transparent);color:var(--ink);outline:none}
-.hint{margin-left:auto;font:12px/1 system-ui,sans-serif;letter-spacing:.04em;color:color-mix(in srgb, var(--ink) 38%, transparent)}
+.tools button{width:40px;height:40px;border-radius:999px;border:1px solid color-mix(in srgb, var(--ink) 28%, var(--ground));background:transparent;color:var(--quiet)}
+.tools button:hover,.tools button:focus-visible{border-color:var(--sky);color:var(--ink);outline:2px solid var(--sky);outline-offset:2px}
+.hint{margin-left:auto;font:12px/1 system-ui,sans-serif;letter-spacing:.04em;color:var(--quiet)}
 .voice{width:120px;height:120px;flex:none;border:0;border-radius:999px;background:
   radial-gradient(circle at 50% 46%, color-mix(in srgb, var(--ice) 50%, transparent), color-mix(in srgb, var(--sky) 36%, transparent) 48%, transparent 72%)}
-.voice:focus-visible{outline:1px solid color-mix(in srgb, var(--amber) 70%, transparent);outline-offset:4px}
+.voice:focus-visible{outline:2px solid var(--sky);outline-offset:4px}
 #voice-dot{width:120px;height:120px;display:block;background:transparent}
 .tools svg{width:22px;height:22px;display:block}
-.price{margin:22px 0 0;text-align:center;font:13px/1.4 system-ui,sans-serif;letter-spacing:.08em;color:color-mix(in srgb, var(--ink) 42%, transparent)}
+.price{margin:22px 0 0;text-align:center;font:13px/1.4 system-ui,sans-serif;letter-spacing:.08em;color:var(--quiet)}
 .app{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100vh}
-#rail{padding:28px 18px 40px;border-right:1px solid color-mix(in srgb, var(--ink) 12%, transparent)}
+#rail{padding:28px 18px 40px;border-right:1px solid color-mix(in srgb, var(--ink) 12%, transparent);background:var(--ground)}
 #rail .brand{margin:0;font:13px/1.3 system-ui,sans-serif;letter-spacing:.16em;text-transform:uppercase}
-#rail .where,#rail .price{margin:10px 0 0;font:12px/1.4 system-ui,sans-serif;letter-spacing:.04em;color:color-mix(in srgb, var(--ink) 48%, transparent)}
-#rail h2{margin:22px 0 10px;font:12px/1 system-ui,sans-serif;font-weight:560;letter-spacing:.16em;text-transform:uppercase;color:color-mix(in srgb, var(--ink) 52%, transparent)}
+#rail .where,#rail .price{margin:10px 0 0;font:12px/1.4 system-ui,sans-serif;letter-spacing:.04em;color:var(--quiet)}
+#rail h2{margin:22px 0 10px;font:12px/1 system-ui,sans-serif;font-weight:560;letter-spacing:.16em;text-transform:uppercase;color:var(--quiet)}
 #history-list{margin:0;padding-left:1.1em}
 #history-list li{margin:0 0 8px;font:14px/1.4 system-ui,sans-serif}
 .stage{width:min(880px,calc(100% - 72px));margin:0 auto;padding:40px 0 80px}
 .piles,.book{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-.pile h3,.book h3{margin:0 0 8px;font:12px/1 system-ui,sans-serif;font-weight:560;letter-spacing:.14em;text-transform:uppercase;color:color-mix(in srgb, var(--ink) 52%, transparent)}
+.pile h3,.book h3{margin:0 0 8px;font:12px/1 system-ui,sans-serif;font-weight:560;letter-spacing:.14em;text-transform:uppercase;color:var(--quiet)}
+#found h3{color:var(--ice)}
+#inferred h3{color:var(--sky)}
+#unknown h3{color:var(--ink)}
 .pile p,.pile li,.book p,.book li{margin:0 0 6px;font:15px/1.45 system-ui,sans-serif}
 .card{border:1px solid color-mix(in srgb, var(--amber) 45%, transparent);border-radius:16px;padding:16px 18px}
 .card button{appearance:none;margin-top:12px;border:1px solid color-mix(in srgb, var(--amber) 70%, transparent);background:transparent;color:var(--ink);border-radius:999px;padding:8px 14px;font:inherit;cursor:pointer}
@@ -89,15 +93,15 @@ textarea::placeholder{color:color-mix(in srgb, var(--ink) 36%, transparent)}
 #hermes-status{margin:0 0 18px;font:13px/1.4 system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:color-mix(in srgb, var(--amber) 75%, var(--ink))}
 #history-list{margin:0;padding-left:1.2em}
 #history-list li{margin:0 0 8px;font:15px/1.45 system-ui,sans-serif}
-#history-empty{margin:0;font:15px/1.45 system-ui,sans-serif;color:color-mix(in srgb, var(--ink) 62%, transparent)}
-.panel{border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);border-radius:18px;padding:16px 18px 18px;background:color-mix(in srgb, var(--ground) 40%, transparent);min-width:0}
-.panel h2,.citations h3{margin:0 0 12px;font:12px/1 system-ui,sans-serif;font-weight:560;letter-spacing:.16em;text-transform:uppercase;color:color-mix(in srgb, var(--ink) 52%, transparent)}
+#history-empty{margin:0;font:15px/1.45 system-ui,sans-serif;color:var(--quiet)}
+.panel{border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);border-radius:18px;padding:16px 18px 18px;background-color:color-mix(in srgb, var(--ground) 92%, var(--ocean));min-width:0}
+.panel h2,.citations h3{margin:0 0 12px;font:12px/1 system-ui,sans-serif;font-weight:560;letter-spacing:.16em;text-transform:uppercase;color:var(--quiet)}
 #answer{grid-column:1 / -1}
 #sources,#plan{min-height:168px}
 #plan-list,#source-list,#citation-list{margin:0;padding-left:1.2em}
 #plan-list li,#source-list li{margin:0 0 8px;font:15px/1.45 system-ui,sans-serif;color:color-mix(in srgb, var(--ink) 88%, transparent)}
 #live-question{color:var(--ink)}
-#source-empty,#citation-empty{margin:0;font:15px/1.45 system-ui,sans-serif;color:color-mix(in srgb, var(--ink) 62%, transparent)}
+#source-empty,#citation-empty,#found-empty,#inferred-empty,#unknown-empty{margin:0;font:15px/1.45 system-ui,sans-serif;color:var(--quiet)}
 #reading{max-width:68ch;min-height:11em}
 #reading p{margin:0 0 12px;font:18px/1.6 system-ui,sans-serif}
 #reading-question{color:var(--ink)}
@@ -105,11 +109,13 @@ textarea::placeholder{color:color-mix(in srgb, var(--ink) 36%, transparent)}
 .citations{margin-top:8px;padding-top:12px;border-top:1px solid color-mix(in srgb, var(--ink) 10%, transparent)}
 #citation-list{color:color-mix(in srgb, var(--ink) 78%, transparent);font:14px/1.45 system-ui,sans-serif}
 #citation-list .mark{color:var(--amber);margin-right:.4em}
-#helpers{margin:18px 0 0;text-align:center;font:13px/1.4 system-ui,sans-serif;letter-spacing:.04em;color:color-mix(in srgb, var(--ink) 46%, transparent)}
-#ui-toggle{width:auto;height:40px;padding:0 14px;border-radius:999px;font:12px/1 system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase}
+#helpers{margin:18px 0 0;text-align:center;font:13px/1.4 system-ui,sans-serif;letter-spacing:.04em;color:var(--quiet)}
+#ui-toggle,#silence{width:auto;height:40px;padding:0 14px;border-radius:999px;font:12px/1 system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase}
+#silence[aria-pressed="true"]{color:var(--ground);background:var(--sky);border-color:var(--sky)}
 body[data-ui="minimal"] #rail,
 body[data-ui="minimal"] .work,
-body[data-ui="minimal"] #add-image{display:none}
+body[data-ui="minimal"] #add-image,
+body[data-ui="minimal"] #commit-hint{display:none}
 body[data-ui="minimal"] .app{display:block}
 body[data-ui="minimal"] .stage{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;width:min(880px,calc(100vw - 80px));margin:0 auto;padding:0;gap:18px}
 body[data-ui="minimal"] .ask{width:100%}
@@ -127,14 +133,14 @@ body[data-ui="minimal"] #helpers{margin:0}
 }
 </style>
 </head>
-<body data-product="research" data-voice="galion-research" data-voice-to-voice="on" data-handoff="voice" data-standard="432" data-ui="minimal">
+<body data-product="research" data-voice="galion-research" data-voice-to-voice="on" data-handoff="voice" data-standard="432" data-silence="off" data-ui="minimal" data-cues="">
 <div class="app">
-<aside id="rail">
+<aside id="rail" aria-label="Research">
   <p class="brand">Galion Research</p>
   <a id="to-one" href="/one">Galion One</a>
   <p class="where">galion.app/research</p>
   <p class="price">Ultra $220/€220 per month</p>
-  <p id="hermes-status" data-app="hermes">Hermes</p>
+  <p id="hermes-status" data-app="hermes" aria-live="polite">Hermes</p>
   <section id="history" aria-labelledby="history-label">
     <h2 id="history-label">Queue</h2>
     <ol id="history-list"></ol>
@@ -157,7 +163,8 @@ body[data-ui="minimal"] #helpers{margin:0}
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="8.5" cy="9.5" r="1.3" fill="currentColor"/><path d="M4 16.2 8.8 12l3.2 2.6 3.1-3.4L20 16.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>
         </button>
         <input id="files" type="file" multiple hidden tabindex="-1" aria-hidden="true">
-        <button type="button" id="ui-toggle" aria-pressed="true">Show interface</button>
+        <button type="button" id="silence" aria-pressed="false">Silence</button>
+        <button type="button" id="ui-toggle" aria-expanded="false" aria-controls="rail work">Show interface</button>
         <span class="hint" id="commit-hint">Return enqueues the question</span>
       </div>
     </div>
@@ -165,8 +172,8 @@ body[data-ui="minimal"] #helpers{margin:0}
       <canvas id="voice-dot" width="240" height="240" aria-hidden="true"></canvas>
     </button>
   </form>
-  <p id="helpers" hidden>Helpers are quiet.</p>
-  <div class="work">
+  <p id="helpers" hidden aria-live="polite">Helpers are quiet.</p>
+  <div class="work" id="work">
     <section class="panel" id="sources" aria-labelledby="sources-label">
       <h2 id="sources-label">Sources</h2>
       <div class="piles">
@@ -220,11 +227,11 @@ var RESEARCH_CUES=[
   {id:"leave",ratio:"1:4",hz:108}
 ];
 var SOUND_SET=RESEARCH_CUES;
-// The handoff from Galion One is voice-only. The disc is the voice control. Nothing is drawn on it.
-var MARK={core:"#F5F5F7",edge:"#E8E8ED",stroke:"rgba(255,255,255,0.55)",strokePx:1};
+// The handoff from Galion One is voice-only. The disc is Ice, Sky, and Ocean. No letter is drawn on it.
+var MARK={core:"#58C4FF",edge:"#0B5FA5",ice:"#B8E8FF",stroke:"rgba(184,232,255,0.55)",strokePx:1};
 function markInner(warm){
   var w=Math.max(0,Math.min(1,warm));
-  return [Math.round(246+9*w), Math.round(246+6*w), Math.round(252-12*w)];
+  return [Math.round(184-96*w), Math.round(232-36*w), 255];
 }
 var voiceCv=document.getElementById("voice-dot"), voiceCx=voiceCv.getContext("2d"), voiceT0=performance.now(), voiceRad=0.34;
 function paintVoice(){
@@ -234,19 +241,21 @@ function paintVoice(){
   var W=Math.max(2, Math.round(css*dpr));
   if(voiceCv.width!==W||voiceCv.height!==W){ voiceCv.width=W; voiceCv.height=W; }
   var listening=document.getElementById("voice").getAttribute("aria-pressed")==="true";
-  var breath=Math.sin(((now-voiceT0)%1600)/1600*2*Math.PI);
+  var reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var breath=reduce?0:Math.sin(((now-voiceT0)%1600)/1600*2*Math.PI);
   var aim=(listening?0.46:0.34)+(listening?0.01:0.012)*breath;
-  voiceRad+=(aim-voiceRad)*0.08;
+  if(reduce) voiceRad=aim;
+  else voiceRad+=(aim-voiceRad)*0.08;
   var rad=voiceRad*(W/2);
   var k=listening?0.72:0.48+0.08*breath;
   voiceCx.clearRect(0,0,W,W);
   voiceCx.save(); voiceCx.translate(W/2,W/2);
   var reach=rad*(1.18+0.06*k);
   var halo=voiceCx.createRadialGradient(0,0,rad*0.92,0,0,reach);
-  halo.addColorStop(0,"rgba(245,245,247,"+(0.05+0.10*Math.max(0,k)).toFixed(3)+")");
-  halo.addColorStop(1,"rgba(245,245,247,0)");
+  halo.addColorStop(0,"rgba(184,232,255,"+(0.08+0.16*Math.max(0,k)).toFixed(3)+")");
+  halo.addColorStop(1,"rgba(184,232,255,0)");
   voiceCx.fillStyle=halo; voiceCx.beginPath(); voiceCx.arc(0,0,reach,0,2*Math.PI); voiceCx.fill();
-  var inner=markInner(0.30);
+  var inner=markInner(listening?0.42:0.08);
   var g=voiceCx.createRadialGradient(-rad*0.08,-rad*0.10,Math.max(1,rad*0.04),0,0,rad);
   g.addColorStop(0,"rgb("+inner[0]+","+inner[1]+","+inner[2]+")");
   g.addColorStop(0.48,MARK.core);
@@ -259,7 +268,13 @@ function paintVoice(){
 }
 requestAnimationFrame(paintVoice);
 var audio=null;
+function silenceOn(){
+  return document.body.getAttribute("data-silence")==="on";
+}
 function tone(id){
+  if(silenceOn()) return;
+  var heard=document.body.getAttribute("data-cues")||"";
+  document.body.setAttribute("data-cues", heard?heard+" "+id:id);
   var row=null;
   for(var i=0;i<SOUND_SET.length;i++) if(SOUND_SET[i].id===id) row=SOUND_SET[i];
   if(!row) return;
@@ -373,6 +388,22 @@ function tone(id){
     btn.setAttribute("aria-pressed", on?"false":"true");
     tone(on?"leave":"listen");
   });
+  function setSilence(on){
+    document.body.setAttribute("data-silence", on?"on":"off");
+    document.getElementById("silence").setAttribute("aria-pressed", on?"true":"false");
+  }
+  if(/[?&]silence=1(?:&|$)/.test(location.search)) setSilence(true);
+  document.getElementById("silence").addEventListener("click", function(){
+    setSilence(!silenceOn());
+  });
+  document.addEventListener("keydown", function(ev){
+    if(ev.key!=="s"&&ev.key!=="S") return;
+    if(ev.metaKey||ev.ctrlKey||ev.altKey||ev.shiftKey) return;
+    var tag=ev.target&&ev.target.tagName;
+    if(tag==="TEXTAREA"||tag==="INPUT"||tag==="SELECT") return;
+    ev.preventDefault();
+    setSilence(!silenceOn());
+  });
   function commitQuestion(){
     var q=prompt.value.replace(/\s+/g," ").trim();
     if(!q) return;
@@ -403,7 +434,7 @@ function tone(id){
     var minimal=document.body.getAttribute("data-ui")==="minimal";
     document.body.setAttribute("data-ui", minimal?"":"minimal");
     ev.currentTarget.textContent=minimal?"Hide interface":"Show interface";
-    ev.currentTarget.setAttribute("aria-pressed", minimal?"false":"true");
+    ev.currentTarget.setAttribute("aria-expanded", minimal?"true":"false");
     tone(minimal?"show":"hide");
   });
   document.getElementById("allow-experiment").addEventListener("click", function(ev){

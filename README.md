@@ -2,13 +2,13 @@
 
 Galion One is the product. Galion Research is a voice inside it, and this workspace. It connects to Galion One. It is not a copy of the One page.
 
-The desk is the page already live at [galion.app/research](https://galion.app/research), from [galion-studio/galion-one-voice#128](https://github.com/galion-studio/galion-one-voice/pull/128). Ink `#0B0F14`, Ice `#B8E8FF`, Sky `#58C4FF`, Ocean `#0B5FA5`. The field says Ask anything. Beside it, a voice disc and a file plus. Show interface opens Sources, Citations, the Notebook (Found, Inferred, Unknown), and an experiment card that asks before anything runs. Hide interface returns to the field.
+The desk is the page already live at [galion.app/research](https://galion.app/research), from [galion-studio/galion-one-voice#128](https://github.com/galion-studio/galion-one-voice/pull/128). Ink `#0B0F14`, Ice `#B8E8FF`, Sky `#58C4FF`, Ocean `#0B5FA5`. The field says Ask anything. Beside it, a voice disc and a file plus. Show interface opens Sources, Citations, the Notebook (Found, Inferred, Unknown), and an experiment card that asks before anything runs. Hide interface returns to the bare field.
 
-The voice is: Galion Research. What are we looking into? The handoff from Galion One is voice-only. Nothing is drawn on the disc.
+The voice is: Galion Research. What are we looking into? The handoff from Galion One is voice-only. No letter is drawn on the disc. The disc is Ice, Sky, and Ocean.
 
 Ultra is $220/€220 per month. That line is copy, not a checkout.
 
-Hermes is the research agent. This process does not ship a voice model, a clone, or an audio file. Research cues are 432 Hz just-intonation ratios in `src/cues.js` and on the page. Definitions only.
+Hermes is the research agent. This process does not ship a voice model, a clone, or an audio file. Research cues are 432 Hz just-intonation ratios in `src/cues.js` and on the page. Definitions only. Silence, and `?silence=1`, keeps those cues quiet. The Silence control sits on the field. Typing in the field does not toggle it. `s` does, when focus is outside the field.
 
 The 7 October 2026 notes are kept in [docs/archive](docs/archive/).
 
@@ -67,9 +67,15 @@ If the galion-one-voice origin is down and Hermes does not answer, the desk cont
 npm test
 ```
 
-Node 22, no packages. The tests cover the page, the local mark, a loopback Hermes turn that keeps the key out of the reply, citation lines, the notebook piles, and the forward to a `/research` origin.
+Node 22, no packages. The tests cover the page, the local mark, a loopback Hermes turn that keeps the key out of the reply, citation lines, the notebook piles, Silence, and the forward to a `/research` origin.
 
-GitHub Actions (`.github/workflows/ci.yml`) runs `npm test` on push and on pull request. This draft does not deploy.
+Desktop and phone screenshots, plus the accessibility checks:
+
+```sh
+cd e2e && npm ci && npx playwright test
+```
+
+GitHub Actions (`.github/workflows/ci.yml`) runs `npm test` and the Playwright suite on push and on pull request. This draft does not deploy.
 
 ## Licence
 
