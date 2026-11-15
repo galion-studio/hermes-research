@@ -14,6 +14,8 @@ jobs:
           node-version: "22"
       - name: build
         run: npm run build
+      - name: audit
+        run: npm run audit
       - name: test
         run: npm test
 
@@ -28,5 +30,8 @@ jobs:
         with:
           node-version: "22"
       - run: npm ci
+      - name: audit
+        working-directory: .
+        run: npm run audit
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test
