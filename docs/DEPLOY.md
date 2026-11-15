@@ -51,6 +51,8 @@ The unit does not set a syscall filter, and it does not set `MemoryDenyWriteExec
 
 `GET /health` returns `200` and `{"ok":true,"service":"galion-research","bind":"127.0.0.1"}`. It does not call Hermes, the research origin, or include the key.
 
+`GET /research/wire` is the desk indicator. It dials only the loopback upstreams from [docs/FORWARD.md](FORWARD.md). It does not include the key. `GET /health` does not call it.
+
 ```sh
 node scripts/check-health.js
 node scripts/check-health.js 8787
