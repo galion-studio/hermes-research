@@ -6,6 +6,8 @@ The desk is the page already live at [galion.app/research](https://galion.app/re
 
 The voice is: Galion Research. What are we looking into? The handoff from Galion One is voice-only. No letter is drawn on the disc. The disc is Ice, Sky, and Ocean.
 
+The rail offers four themes: Ink, Ice, Sky, and Ocean. Ink is the one the desk opens on. The ground stays Ink in all four, so Ice and Sky text keep their contrast. The disc does not change colour. Focus rings are Sky, 2 px, with a 3 px offset. Escape hides the interface. Return enqueues the question. Shift and return keeps the line. Found, Inferred, and Unknown each have a screen-reader name. Reduced motion holds the disc and skips transitions. A question in flight says `Reading the question.` An empty desk, an empty question, and an offline answer stay separate states.
+
 Ultra is $220/€220 per month. That line is copy, not a checkout.
 
 Hermes is the research agent. This process does not ship a voice model, a clone, or an audio file. Research cues are 432 Hz just-intonation ratios in `src/cues.js` and on the page. Definitions only. Silence, and `?silence=1`, keeps those cues quiet. The Silence control sits on the field. Typing in the field does not toggle it. `s` does, when focus is outside the field.
