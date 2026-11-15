@@ -1,0 +1,32 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: build
+        run: npm run build
+      - name: test
+        run: npm test
+
+  playwright:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: e2e
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
