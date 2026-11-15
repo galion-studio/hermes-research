@@ -178,6 +178,10 @@ export function createDesk(hermes, deps = {}) {
         session.sources.push({ label: "Citation", n: cite.n, text: cite.text, questionId: note.id });
       }
     }
+    for (const source of note.handed || []) {
+      if (!source.text || session.sources.length >= SOURCE_CAP) continue;
+      session.sources.push({ label: "File", text: source.text, questionId: note.id });
+    }
     while (session.sources.length > SOURCE_CAP) session.sources.shift();
   }
 
@@ -203,8 +207,8 @@ export function createDesk(hermes, deps = {}) {
     };
   }
 
-  function ask(question, sessionId) {
-    const job = chain.then(() => run(question, sessionId));
+  function ask(question, sessionId, files) {
+    const job = chain.then(() => run(question, sessionId, files));
     chain = job.then(
       () => {},
       () => {},
@@ -212,20 +216,38 @@ export function createDesk(hermes, deps = {}) {
     return job;
   }
 
-  async function run(question, sessionId) {
+  function handedText(files, key) {
+    const sources = [];
+    const lines = [];
+    for (const file of files || []) {
+      const name = scrub(file.name, key);
+      sources.push({ label: "File", text: name });
+      const excerpt = scrub(file.excerpt || "", key).replace(/\s+/g, " ").trim();
+      lines.push(excerpt ? `Handed file ${name}, ${file.bytes} bytes. ${excerpt}` : `Handed file ${name}, ${file.bytes} bytes.`);
+    }
+    return { line: lines.join(" "), sources };
+  }
+
+  async function run(question, sessionId, files) {
     const session = open(sessionId);
     session.status = "Running";
     session.nextId += 1;
     const id = session.nextId;
     const clean = scrub(question, hermes.key);
+    const handed = handedText(files, hermes.key);
+    const room = 2_000 - [...clean].length - 1;
+    const extra = room > 0 ? [...handed.line].slice(0, room).join("") : "";
+    const asked = extra ? `${clean}\n${extra}` : clean;
     let done;
     if (!hermes.attached) {
-      done = offlineResult(clean, hermes.key);
+      const local = offlineResult(clean, hermes.key);
+      done = handed.line ? { ...local, reply: `${local.reply} ${handed.line}` } : local;
     } else {
-      const turn = await turnFn(hermes, clean);
+      const turn = await turnFn(hermes, asked);
       done = finish(turn, clean, hermes.key);
+      if (handed.line && done.status === "Offline") done = { ...done, reply: `${done.reply} ${handed.line}` };
     }
-    const note = { id, at: Date.now(), question: clean, ...done };
+    const note = { id, at: Date.now(), question: clean, ...done, handed: handed.sources };
     session.notes.push(note);
     while (session.notes.length > HISTORY_CAP) session.notes.shift();
     rememberSources(session, note);

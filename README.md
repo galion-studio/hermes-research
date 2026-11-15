@@ -6,6 +6,8 @@ The desk is the page already live at [galion.app/research](https://galion.app/re
 
 The voice is: Galion Research. What are we looking into? The handoff from Galion One is voice-only. No letter is drawn on the disc. The disc is Ice, Sky, and Ocean.
 
+The rail offers four themes: Ink, Ice, Sky, and Ocean. Ink is the one the desk opens on. The ground stays Ink in all four, so Ice and Sky text keep their contrast. The disc does not change colour. Focus rings are Sky, 2 px, with a 3 px offset. Escape hides the interface. Return enqueues the question. Shift and return keeps the line. Found, Inferred, and Unknown each have a screen-reader name. Reduced motion holds the disc and skips transitions. A question in flight says `Reading the question.` An empty desk, an empty question, and an offline answer stay separate states.
+
 Ultra is $220/€220 per month. That line is copy, not a checkout.
 
 Hermes is the research agent. This process does not ship a voice model, a clone, or an audio file. Research cues are 432 Hz just-intonation ratios in `src/cues.js` and on the page. Definitions only. Silence, and `?silence=1`, keeps those cues quiet. The Silence control sits on the field. Typing in the field does not toggle it. `s` does, when focus is outside the field.
@@ -74,6 +76,10 @@ Every response sends a content security policy. The page's style and script carr
 ### Limits and errors
 
 A request body over 32768 bytes, or a question over 2000 characters, is `413` with `status: "Error"`. An empty question or a body that is not JSON is `400`. An unknown path is `404`. A known path with the wrong method is `405`. More than 30 questions, or more than 240 requests, from one session in 60 seconds is `429`. `GALION_ASK_RATE` and `GALION_RATE_LIMIT` override those two caps. Each of those responses is the same JSON shape: `error`, `reply`, and empty citations, found, inferred, unknown, and sources. The reply is the limit, not an answer. The question is not stored. The page shows that sentence in the error line. It does not label the failure `Offline` and it does not invent a source. A plain-text refusal from the research origin is rewritten into that same shape.
+
+### Files
+
+Any file can be handed with the question, including a dotfile. There is no type list and no size cap. The bytes stream to a directory outside this repository. The turn hears the file name, the size, and a short text prefix. That prefix length is `EXCERPT_BYTES` in `src/uploads.js`. The file is not a citation.
 
 ## Tests and CI
 

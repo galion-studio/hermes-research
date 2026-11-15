@@ -7,6 +7,17 @@ import http from "node:http";
 import { fileURLToPath } from "node:url";
 
 import { HELPERS_OFFLINE, createDesk } from "./desk.js";
+import {
+  acceptAnswer,
+  acceptHistory,
+  acceptStatus,
+  exchange,
+  failureState,
+  forwardConfig,
+  leaksKey,
+  wireReport,
+  withWireIndicator,
+} from "./forward.js";
 import { newNonce, securityHeaders, withNonce } from "./headers.js";
 import { localKnowledge } from "./local.js";
 import { LLM_NAME, configFromEnv, isLoopback, keyState } from "./hermes.js";
@@ -26,13 +37,14 @@ import {
   questionLength,
   rateLimitsFromEnv,
 } from "./limits.js";
+import { UPLOAD_FORM, UPLOAD_NAME, parseMultipart, removeUploads, uploadDir } from "./uploads.js";
 
 export { BODY_LIMIT, QUESTION_LIMIT };
 
 export const BIND_HOST = "127.0.0.1";
 export const DEFAULT_PORT = 8787;
 
-const PAGE = readFileSync(fileURLToPath(new URL("../public/research.html", import.meta.url)), "utf8");
+const PAGE = withWireIndicator(readFileSync(fileURLToPath(new URL("../public/research.html", import.meta.url)))).toString("utf8");
 
 const ALLOW = Object.freeze({
   "/favicon.ico": "GET",
@@ -42,6 +54,7 @@ const ALLOW = Object.freeze({
   "/research/": "GET",
   "/one": "GET",
   "/one/": "GET",
+  "/research/wire": "GET",
   "/research/hermes": "GET",
   "/research/history": "GET",
   "/research/sources": "GET",
@@ -96,6 +109,10 @@ export function listenTarget(options = {}, env = process.env) {
   return { host: BIND_HOST, port };
 }
 
+function isMultipart(req) {
+  return /^multipart\/form-data\b/i.test(String(req.headers["content-type"] || ""));
+}
+
 function declaredLength(req) {
   const raw = req.headers["content-length"];
   if (raw == null || raw === "") return null;
@@ -126,16 +143,6 @@ function readBody(req, limit = BODY_LIMIT) {
       if (!settled) reject(err);
     });
   });
-}
-
-async function proxy(origin, path, init) {
-  const response = await fetch(new URL(path, origin), {
-    ...init,
-    redirect: "error",
-    signal: AbortSignal.timeout(4_000),
-  });
-  const text = await response.text();
-  return { status: response.status, text };
 }
 
 function send(res, status, type, body, nonce = newNonce(), extra) {
@@ -186,22 +193,28 @@ function sendProxied(res, proxied) {
 export function createApp(env = process.env) {
   const hermes = configFromEnv(env);
   const desk = createDesk(hermes);
-  const upstream = researchOrigin(env.GALION_RESEARCH_URL);
-  const one = oneTarget(env.GALION_ONE_URL || "https://galion.app/one");
+  const wire = forwardConfig(env);
+  const one = wire.openmind.origin
+    ? `${wire.openmind.origin}/one`
+    : oneTarget(env.GALION_ONE_URL || "https://galion.app/one");
   const limiter = createRateLimiter(rateLimitsFromEnv(env));
-  let upstreamLive = Boolean(upstream);
 
   async function fromUpstream(path, init) {
-    if (!upstream || !upstreamLive) return null;
+    if (!wire.voice.forward) return null;
     try {
-      const result = await proxy(upstream, path, init);
-      if (result.status >= 200 && result.status < 300) return result;
-      if (result.status === 400) return result;
-    } catch {
-      upstreamLive = false;
+      const result = await exchange(wire.voice.forward, path, init, wire.timeoutMs);
+      if (result.overflow) return { state: "malformed" };
+      if (leaksKey(result.text, hermes.key)) return { state: "malformed" };
+      return { state: "http", status: result.status, text: result.text };
+    } catch (err) {
+      return { state: failureState(err) };
     }
-    upstreamLive = false;
-    return null;
+  }
+
+  function acceptedJson(kind, text) {
+    if (kind === "answer") return acceptAnswer(text);
+    if (kind === "history") return acceptHistory(text);
+    return acceptStatus(text);
   }
 
   return async function handle(req, res) {
@@ -211,6 +224,7 @@ export function createApp(env = process.env) {
     const fromCookie = sessionToken(req.headers.cookie);
     const fromHeader = sessionToken(req.headers["x-research-session"]);
     const presented = fromCookie || fromHeader;
+    const multipart = method === "POST" && path === "/research/ask" && isMultipart(req);
 
     function fail(status, code, reply, extra) {
       json(res, status, errorBody(code, reply), extra);
@@ -218,7 +232,7 @@ export function createApp(env = process.env) {
     }
 
     const declared = declaredLength(req);
-    if (Number.isNaN(declared) || (declared != null && declared > BODY_LIMIT)) {
+    if (!multipart && (Number.isNaN(declared) || (declared != null && declared > BODY_LIMIT))) {
       fail(413, "too-large", BODY_TOO_LONG);
       return;
     }
@@ -249,6 +263,11 @@ export function createApp(env = process.env) {
       return;
     }
 
+    if (method === "GET" && path === "/research/wire") {
+      json(res, 200, await wireReport(env, hermes));
+      return;
+    }
+
     if (method === "GET" && (path === "/" || path === "/research" || path === "/research/")) {
       const nonce = newNonce();
       send(res, 200, "text/html; charset=utf-8", withNonce(PAGE, nonce), nonce);
@@ -262,20 +281,26 @@ export function createApp(env = process.env) {
 
     if (method === "GET" && path === "/research/hermes") {
       const proxied = await fromUpstream("/research/hermes");
-      if (proxied) {
-        sendProxied(res, proxied);
+      const accepted = proxied && proxied.state === "http" && proxied.status >= 200 && proxied.status < 300
+        ? acceptedJson("status", proxied.text)
+        : null;
+      if (accepted) {
+        json(res, 200, accepted);
         return;
       }
       const body = desk.statusBody(sessionId);
-      if (upstream) body.upstream = "down";
+      if (wire.voice.forward) body.upstream = proxied && proxied.state === "timeout" ? "timeout" : "down";
       json(res, 200, body);
       return;
     }
 
     if (method === "GET" && path === "/research/history") {
       const proxied = await fromUpstream("/research/history");
-      if (proxied) {
-        sendProxied(res, proxied);
+      const accepted = proxied && proxied.state === "http" && proxied.status >= 200 && proxied.status < 300
+        ? acceptedJson("history", proxied.text)
+        : null;
+      if (accepted) {
+        json(res, 200, accepted);
         return;
       }
       json(res, 200, desk.historyBody(sessionId));
@@ -284,6 +309,49 @@ export function createApp(env = process.env) {
 
     if (method === "GET" && path === "/research/sources") {
       json(res, 200, desk.sourcesBody(sessionId));
+      return;
+    }
+
+    if (multipart) {
+      const dir = uploadDir(env);
+      let parsed;
+      try {
+        parsed = await parseMultipart(req, req.headers["content-type"], dir);
+      } catch (err) {
+        const tooLarge = err && err.code === 413;
+        const reply = err && err.reason === "name" ? UPLOAD_NAME : tooLarge ? QUESTION_TOO_LONG : UPLOAD_FORM;
+        json(res, tooLarge ? 413 : 400, errorBody(tooLarge ? "too-large" : err && err.reason === "name" ? "name" : "bad-request", reply));
+        return;
+      }
+      const question = String(parsed.question || "").trim();
+      if (!question || questionLength(question) > QUESTION_LIMIT) {
+        await removeUploads(parsed.files, dir);
+        const tooLarge = questionLength(question) > QUESTION_LIMIT;
+        json(res, tooLarge ? 413 : 400, errorBody(tooLarge ? "too-large" : "empty", tooLarge ? QUESTION_TOO_LONG : EMPTY_QUESTION));
+        return;
+      }
+      const body = await desk.ask(question, sessionId, parsed.files);
+      if (hermes.key && JSON.stringify(body).includes(hermes.key)) {
+        await removeUploads(parsed.files, dir);
+        const local = localKnowledge("");
+        json(res, 200, {
+          schema: "galion-research/1",
+          app: "hermes",
+          model: hermes.model || LLM_NAME,
+          status: "Offline",
+          question: "",
+          reply: local.reply,
+          citations: [],
+          found: [],
+          inferred: [],
+          unknown: local.unknown,
+          sources: [{ label: "Local", text: "What is already known stays marked local." }],
+          helpers: HELPERS_OFFLINE,
+          key: keyState(hermes.key),
+        });
+        return;
+      }
+      json(res, 200, body);
       return;
     }
 
@@ -317,9 +385,16 @@ export function createApp(env = process.env) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question }),
       });
-      if (proxied) {
+      if (proxied && proxied.state === "http" && proxied.status === 400) {
         sendProxied(res, proxied);
         return;
+      }
+      if (proxied && proxied.state === "http" && proxied.status >= 200 && proxied.status < 300) {
+        const accepted = acceptedJson("answer", proxied.text);
+        if (accepted) {
+          json(res, 200, accepted);
+          return;
+        }
       }
       const body = await desk.ask(question, sessionId);
       if (hermes.key && JSON.stringify(body).includes(hermes.key)) {
