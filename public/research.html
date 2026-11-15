@@ -35,21 +35,60 @@ SOFTWARE.
 <meta name="color-scheme" content="dark">
 <title>Galion Research</title>
 <style>
-:root{--ground:#0B0F14;--ink:#E6EDF3;--sky:#58C4FF;--ice:#B8E8FF;--ocean:#0B5FA5;--quiet:color-mix(in srgb, #E6EDF3 78%, #0B0F14);--amber:var(--sky);--violet:var(--ocean)}
+/* Tokens from Branding V2 and Open Mind brand/tokens.css.
+   --ground is Ink. --ink stays the text colour this page already uses. */
+:root{
+  --om-obsidian:#05070A;
+  --om-ink:#0B0F14;
+  --om-surface:#131A22;
+  --om-glass:#1B2633;
+  --om-line:#24303C;
+  --om-slate:#4A7C99;
+  --om-mist:#A7B6C4;
+  --om-text:#E6EDF3;
+  --om-sky:#58C4FF;
+  --om-ice:#B8E8FF;
+  --om-ocean:#0B5FA5;
+  --om-paper:#F7F9FB;
+  --om-muted-paper:#3F4C59;
+  --om-font-display:"Jost","IBM Plex Sans",system-ui,sans-serif;
+  --om-font-sans:"IBM Plex Sans",system-ui,sans-serif;
+  --om-font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --om-focus:var(--om-sky);
+  --om-radius-pill:999px;
+  --ground:var(--om-ink);
+  --ink:var(--om-text);
+  --sky:var(--om-sky);
+  --ice:var(--om-ice);
+  --ocean:var(--om-ocean);
+  --quiet:var(--om-mist);
+  --amber:var(--om-sky);
+  --violet:var(--om-ocean);
+  --focus:var(--om-focus);
+  --panel:color-mix(in srgb, var(--ground) 92%, var(--ocean));
+  --line:var(--om-line);
+}
 html,body{margin:0;min-height:100%;background:var(--ground);color:var(--ink)}
 body{min-height:100vh;min-height:100dvh;
   background:
     radial-gradient(90% 48% at 50% -14%, color-mix(in srgb, var(--ice) 38%, transparent), transparent 62%),
     radial-gradient(ellipse 70% 50% at 80% 110%, color-mix(in srgb, var(--ocean) 42%, transparent), transparent 58%),
     var(--ground);
-  font-family:system-ui,sans-serif}
+  color:var(--ink);
+  font-family:var(--om-font-sans);
+  transition:background-color 180ms linear}
 .desk{width:min(1080px,calc(100vw - 96px));margin:0 auto;padding:32px 0 72px}
 .top{display:flex;align-items:center;justify-content:space-between;margin:0 0 36px}
-#to-one,.voice-name{font:13px/1 system-ui,sans-serif;letter-spacing:.16em;text-transform:uppercase;text-decoration:none}
+#to-one,.voice-name{font:13px/1 var(--om-font-mono);letter-spacing:.16em;text-transform:uppercase;text-decoration:none}
 #to-one{color:var(--quiet)}
-#to-one:hover,#to-one:focus-visible{color:var(--ink);outline:none}
+#to-one:hover,#to-one:focus-visible{color:var(--ink)}
 .voice-name{margin:0;color:color-mix(in srgb, var(--ink) 88%, transparent)}
-#handoff{margin:-18px 0 22px;font:14px/1.4 system-ui,sans-serif;color:color-mix(in srgb, var(--amber) 80%, var(--ink))}
+#handoff{margin:-18px 0 22px;font:14px/1.4 var(--om-font-sans);color:color-mix(in srgb, var(--amber) 80%, var(--ink))}
+.skip{position:absolute;left:12px;top:12px;z-index:8;padding:10px 14px;border-radius:var(--om-radius-pill);
+  background:var(--sky);color:var(--ground);font:12px/1 var(--om-font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none;
+  transform:translateY(-200%)}
+.skip:focus{transform:none}
+:where(a,button,input):focus-visible{outline:2px solid var(--focus);outline-offset:3px}
 .ask{display:flex;align-items:center;gap:22px}
 .field{position:relative;flex:1;min-width:0;border-radius:32px;border:1px solid transparent;padding:26px 26px 14px;
   background:
@@ -57,63 +96,73 @@ body{min-height:100vh;min-height:100dvh;
     linear-gradient(135deg, color-mix(in srgb, var(--ice) 80%, transparent), color-mix(in srgb, var(--sky) 70%, transparent) 55%, color-mix(in srgb, var(--ocean) 85%, transparent)) border-box;
   background-color:var(--ground);
   box-shadow:0 28px 80px rgba(0,0,0,.35)}
-.field:focus-within{box-shadow:0 28px 80px rgba(0,0,0,.35), 0 0 0 1px color-mix(in srgb, var(--amber) 28%, transparent)}
+.field:focus-within{outline:2px solid var(--focus);outline-offset:3px;box-shadow:0 28px 80px rgba(0,0,0,.35)}
 textarea{display:block;width:100%;box-sizing:border-box;min-height:132px;margin:0;padding:0 2px;border:0;resize:none;
-  background:transparent;color:var(--ink);font:28px/1.35 system-ui,sans-serif;letter-spacing:-.02em;outline:none}
+  background:transparent;color:var(--ink);font:28px/1.35 var(--om-font-display);letter-spacing:-.02em}
+textarea:focus,textarea:focus-visible{outline:none}
+textarea[aria-invalid="true"]{color:var(--ink)}
 textarea::placeholder{color:color-mix(in srgb, var(--ice) 72%, var(--ground))}
 .tools{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:8px}
 .tools button,.voice{appearance:none;display:grid;place-items:center;padding:0;cursor:pointer;color:var(--ink)}
 .tools button{width:40px;height:40px;border-radius:999px;border:1px solid color-mix(in srgb, var(--ink) 28%, var(--ground));background:transparent;color:var(--quiet)}
-.tools button:hover,.tools button:focus-visible{border-color:var(--sky);color:var(--ink);outline:2px solid var(--sky);outline-offset:2px}
-.hint{margin-left:auto;font:12px/1 system-ui,sans-serif;letter-spacing:.04em;color:var(--quiet)}
+.tools button:hover,.tools button:focus-visible{border-color:var(--sky);color:var(--ink)}
+.hint{margin-left:auto;font:12px/1 var(--om-font-mono);letter-spacing:.04em;color:var(--quiet)}
 .voice{width:120px;height:120px;flex:none;border:0;border-radius:999px;background:
   radial-gradient(circle at 50% 46%, color-mix(in srgb, var(--ice) 50%, transparent), color-mix(in srgb, var(--sky) 36%, transparent) 48%, transparent 72%)}
-.voice:focus-visible{outline:2px solid var(--sky);outline-offset:4px}
+.voice:focus-visible{outline-offset:4px}
 #voice-dot{width:120px;height:120px;display:block;background:transparent}
 .tools svg{width:22px;height:22px;display:block}
-.price{margin:22px 0 0;text-align:center;font:13px/1.4 system-ui,sans-serif;letter-spacing:.08em;color:var(--quiet)}
+.price{margin:22px 0 0;text-align:center;font:13px/1.4 var(--om-font-sans);letter-spacing:.08em;color:var(--quiet)}
 .app{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100vh}
-#rail{padding:28px 18px 40px;border-right:1px solid color-mix(in srgb, var(--ink) 12%, transparent);background:var(--ground)}
-#rail .brand{margin:0;font:13px/1.3 system-ui,sans-serif;letter-spacing:.16em;text-transform:uppercase}
-#rail .where,#rail .price{margin:10px 0 0;font:12px/1.4 system-ui,sans-serif;letter-spacing:.04em;color:var(--quiet)}
-#rail h2{margin:22px 0 10px;font:12px/1 system-ui,sans-serif;font-weight:560;letter-spacing:.16em;text-transform:uppercase;color:var(--quiet)}
+#rail{padding:28px 18px 40px;border-right:1px solid var(--line);background:var(--ground)}
+#rail .brand{margin:0;font:13px/1.3 var(--om-font-mono);letter-spacing:.16em;text-transform:uppercase}
+#rail .where,#rail .price{margin:10px 0 0;font:12px/1.4 var(--om-font-sans);letter-spacing:.04em;color:var(--quiet)}
+#rail h2{margin:22px 0 10px;font:12px/1 var(--om-font-mono);font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--quiet)}
+.themes{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0 0;padding:0;border:0;min-width:0}
+.themes legend{flex-basis:100%;padding:0;margin:0 0 8px;font:12px/1 var(--om-font-mono);font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--quiet)}
+.themes label{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 10px;border-radius:var(--om-radius-pill);border:1px solid var(--line);color:var(--ink);font:12px/1 var(--om-font-mono);letter-spacing:.06em}
+.themes input{width:16px;height:16px;margin:0;accent-color:var(--sky)}
+.themes input:focus,.themes input:focus-visible{outline:none}
+.themes label:focus-within{outline:2px solid var(--focus);outline-offset:3px}
+.themes label:has(input:checked){background:var(--sky);color:var(--ground);border-color:var(--sky)}
+.themes label:has(input:checked) input{accent-color:var(--ground)}
 #history-list{margin:0;padding-left:1.1em}
-#history-list li{margin:0 0 8px;font:14px/1.4 system-ui,sans-serif}
+#history-list li{margin:0 0 8px;font:14px/1.4 var(--om-font-sans);overflow-wrap:anywhere}
 .stage{width:min(880px,calc(100% - 72px));margin:0 auto;padding:40px 0 80px}
 .piles,.book{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-.pile h3,.book h3{margin:0 0 8px;font:12px/1 system-ui,sans-serif;font-weight:560;letter-spacing:.14em;text-transform:uppercase;color:var(--quiet)}
+.pile h3,.book h3{margin:0 0 8px;font:12px/1 var(--om-font-mono);font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--quiet)}
 #found h3{color:var(--ice)}
 #inferred h3{color:var(--sky)}
 #unknown h3{color:var(--ink)}
-.pile p,.pile li,.book p,.book li{margin:0 0 6px;font:15px/1.45 system-ui,sans-serif}
+.pile p,.pile li,.book p,.book li{margin:0 0 6px;font:15px/1.45 var(--om-font-sans);overflow-wrap:anywhere}
 .card{border:1px solid color-mix(in srgb, var(--amber) 45%, transparent);border-radius:16px;padding:16px 18px}
-.card button{appearance:none;margin-top:12px;border:1px solid color-mix(in srgb, var(--amber) 70%, transparent);background:transparent;color:var(--ink);border-radius:999px;padding:8px 14px;font:inherit;cursor:pointer}
+.card button{appearance:none;margin-top:12px;min-height:44px;border:1px solid color-mix(in srgb, var(--amber) 70%, transparent);background:transparent;color:var(--ink);border-radius:var(--om-radius-pill);padding:8px 14px;font:inherit;cursor:pointer}
 .card button[aria-pressed="true"]{background:var(--amber);color:var(--ground);border-color:var(--amber)}
 .work{display:grid;gap:16px;margin-top:28px}
-#hermes-status{margin:0 0 18px;font:13px/1.4 system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:color-mix(in srgb, var(--amber) 75%, var(--ink))}
+#hermes-status{margin:0 0 18px;font:13px/1.4 var(--om-font-mono);letter-spacing:.08em;text-transform:uppercase;color:color-mix(in srgb, var(--amber) 75%, var(--ink))}
 #history-list{margin:0;padding-left:1.2em}
-#history-list li{margin:0 0 8px;font:15px/1.45 system-ui,sans-serif}
-#history-empty{margin:0;font:15px/1.45 system-ui,sans-serif;color:var(--quiet)}
-.panel{border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);border-radius:18px;padding:16px 18px 18px;background-color:color-mix(in srgb, var(--ground) 92%, var(--ocean));min-width:0}
-.panel h2,.citations h3{margin:0 0 12px;font:12px/1 system-ui,sans-serif;font-weight:560;letter-spacing:.16em;text-transform:uppercase;color:var(--quiet)}
+#history-list li{margin:0 0 8px;font:15px/1.45 var(--om-font-sans);overflow-wrap:anywhere}
+#history-empty{margin:0;font:15px/1.45 var(--om-font-sans);color:var(--quiet)}
+.panel{border:1px solid var(--line);border-radius:18px;padding:16px 18px 18px;background-color:var(--panel);min-width:0}
+.panel h2,.citations h3{margin:0 0 12px;font:12px/1 var(--om-font-mono);font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--quiet)}
 #answer{grid-column:1 / -1}
 #sources,#plan{min-height:168px}
 #plan-list,#source-list,#citation-list{margin:0;padding-left:1.2em}
-#plan-list li,#source-list li{margin:0 0 8px;font:15px/1.45 system-ui,sans-serif;color:color-mix(in srgb, var(--ink) 88%, transparent)}
+#plan-list li,#source-list li{margin:0 0 8px;font:15px/1.45 var(--om-font-sans);color:color-mix(in srgb, var(--ink) 88%, transparent);overflow-wrap:anywhere}
 #live-question{color:var(--ink)}
-#source-empty,#citation-empty,#found-empty,#inferred-empty,#unknown-empty{margin:0;font:15px/1.45 system-ui,sans-serif;color:var(--quiet)}
+#source-empty,#citation-empty,#found-empty,#inferred-empty,#unknown-empty,#reading-empty,#arriving-empty{margin:0;font:15px/1.45 var(--om-font-sans);color:var(--quiet)}
 #reading{max-width:68ch;min-height:11em}
-#reading p{margin:0 0 12px;font:18px/1.6 system-ui,sans-serif}
+#reading p{margin:0 0 12px;font:18px/1.6 var(--om-font-sans);overflow-wrap:anywhere}
 #reading-question{color:var(--ink)}
 #reading-local{color:color-mix(in srgb, var(--ink) 72%, transparent)}
 .citations{margin-top:8px;padding-top:12px;border-top:1px solid color-mix(in srgb, var(--ink) 10%, transparent)}
-#citation-list{color:color-mix(in srgb, var(--ink) 78%, transparent);font:14px/1.45 system-ui,sans-serif}
+#citation-list{color:color-mix(in srgb, var(--ink) 78%, transparent);font:14px/1.45 var(--om-font-sans)}
 #citation-list .mark{color:var(--amber);margin-right:.4em}
-#helpers{margin:18px 0 0;text-align:center;font:13px/1.4 system-ui,sans-serif;letter-spacing:.04em;color:var(--quiet)}
-#state-line{margin:0 0 18px;text-align:center;font:13px/1.4 system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:color-mix(in srgb, var(--ice) 82%, var(--ink))}
+#helpers{margin:18px 0 0;text-align:center;font:13px/1.4 var(--om-font-sans);letter-spacing:.04em;color:var(--quiet)}
+#state-line,#loading{margin:0 0 18px;text-align:center;font:13px/1.4 var(--om-font-mono);letter-spacing:.08em;text-transform:uppercase;color:color-mix(in srgb, var(--ice) 82%, var(--ink))}
 body:not([data-ui="minimal"]) #state-line{display:none}
-#error{margin:12px 0 0;text-align:center;font:15px/1.45 system-ui,sans-serif;color:var(--ice)}
-#ui-toggle,#silence{width:auto;height:40px;padding:0 14px;border-radius:999px;font:12px/1 system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase}
+#error{margin:12px 0 0;text-align:center;font:15px/1.45 var(--om-font-sans);color:var(--ice)}
+#ui-toggle,#silence{width:auto;height:44px;padding:0 14px;border-radius:var(--om-radius-pill);font:12px/1 var(--om-font-mono);letter-spacing:.08em;text-transform:uppercase}
 #silence[aria-pressed="true"]{color:var(--ground);background:var(--sky);border-color:var(--sky)}
 body[data-ui="minimal"] #rail,
 body[data-ui="minimal"] .work,
@@ -124,27 +173,74 @@ body[data-ui="minimal"] .stage{display:flex;flex-direction:column;align-items:ce
 body[data-ui="minimal"] .ask{width:100%}
 body[data-ui="minimal"] #helpers,
 body[data-ui="minimal"] #state-line,
+body[data-ui="minimal"] #loading,
 body[data-ui="minimal"] #error{margin:0}
-.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+body[data-state="error"] .field{outline:2px solid var(--ice);outline-offset:3px}
+body[data-state="loading"] .field{outline:2px solid var(--focus);outline-offset:3px}
+body[data-theme="ice"]{
+  --panel:color-mix(in srgb, var(--ground) 94%, var(--ice));
+  background:
+    radial-gradient(90% 52% at 50% -18%, color-mix(in srgb, var(--ice) 46%, transparent), transparent 64%),
+    radial-gradient(ellipse 68% 48% at 82% 112%, color-mix(in srgb, var(--ice) 22%, transparent), transparent 60%),
+    var(--ground);
+}
+body[data-theme="sky"]{
+  --panel:color-mix(in srgb, var(--ground) 90%, var(--sky));
+  background:
+    radial-gradient(90% 50% at 50% -16%, color-mix(in srgb, var(--sky) 40%, transparent), transparent 62%),
+    radial-gradient(ellipse 70% 50% at 18% 112%, color-mix(in srgb, var(--sky) 28%, transparent), transparent 58%),
+    var(--ground);
+}
+body[data-theme="ocean"]{
+  --panel:color-mix(in srgb, var(--ground) 84%, var(--ocean));
+  background:
+    radial-gradient(88% 48% at 50% -12%, color-mix(in srgb, var(--ocean) 78%, transparent), transparent 62%),
+    radial-gradient(ellipse 76% 54% at 84% 112%, color-mix(in srgb, var(--ocean) 62%, transparent), transparent 58%),
+    var(--ground);
+}
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);clip-path:inset(50%);border:0}
+@media (min-width:960px){
+  body:not([data-ui="minimal"]) .work{grid-template-columns:1fr 1fr}
+  body:not([data-ui="minimal"]) #notebook,
+  body:not([data-ui="minimal"]) #answer,
+  body:not([data-ui="minimal"]) #experiments{grid-column:1 / -1}
+}
 @media (max-width:800px){
   .desk{width:min(1080px,calc(100vw - 32px))}
   .ask{flex-direction:column;align-items:stretch}
+  .field{padding:18px 16px 12px}
   textarea{font-size:22px;min-height:112px}
+  .tools button{width:44px;height:44px}
   .voice{align-self:center}
   .app{grid-template-columns:1fr}
-  #rail{border-right:0;border-bottom:1px solid color-mix(in srgb, var(--ink) 12%, transparent)}
+  #rail{border-right:0;border-bottom:1px solid var(--line)}
+  .stage{width:min(880px,calc(100% - 32px));padding:24px 0 48px}
   .piles,.book{grid-template-columns:1fr}
   .work{grid-template-columns:1fr}
+  body[data-ui="minimal"] .stage{width:min(880px,calc(100vw - 32px))}
+}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:0.01ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important;scroll-behavior:auto !important}
+  body{transition:none}
 }
 </style>
 </head>
-<body data-product="research" data-voice="galion-research" data-voice-to-voice="on" data-handoff="voice" data-standard="432" data-silence="off" data-ui="minimal" data-cues="">
+<body data-product="research" data-voice="galion-research" data-voice-to-voice="on" data-handoff="voice" data-standard="432" data-silence="off" data-ui="minimal" data-theme="ink" data-state="empty" data-cues="">
+<a class="skip" href="#prompt">Skip to ask</a>
 <div class="app">
 <aside id="rail" aria-label="Research">
   <p class="brand">Galion Research</p>
   <a id="to-one" href="/one">Galion One</a>
   <p class="where">galion.app/research</p>
   <p class="price">Ultra $220/€220 per month</p>
+  <fieldset class="themes">
+    <legend>Theme</legend>
+    <label><input type="radio" name="theme" value="ink" checked><span>Ink</span></label>
+    <label><input type="radio" name="theme" value="ice"><span>Ice</span></label>
+    <label><input type="radio" name="theme" value="sky"><span>Sky</span></label>
+    <label><input type="radio" name="theme" value="ocean"><span>Ocean</span></label>
+  </fieldset>
+  <p id="theme-live" class="sr" aria-live="polite"></p>
   <p id="hermes-status" data-app="hermes" aria-live="polite">Hermes</p>
   <section id="history" aria-labelledby="history-label">
     <h2 id="history-label">Queue</h2>
@@ -160,7 +256,7 @@ body[data-ui="minimal"] #error{margin:0}
   <form class="ask" id="ask" action="#" method="post">
     <div class="field">
       <label class="sr" for="prompt">Ask</label>
-      <textarea id="prompt" name="prompt" rows="4" placeholder="Ask anything" autocomplete="off"></textarea>
+      <textarea id="prompt" name="prompt" rows="4" placeholder="Ask anything" autocomplete="off" aria-describedby="ask-hint"></textarea>
       <div class="tools">
         <button type="button" id="add-file" aria-label="Add files">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
@@ -169,9 +265,10 @@ body[data-ui="minimal"] #error{margin:0}
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="8.5" cy="9.5" r="1.3" fill="currentColor"/><path d="M4 16.2 8.8 12l3.2 2.6 3.1-3.4L20 16.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>
         </button>
         <input id="files" type="file" multiple hidden tabindex="-1" aria-hidden="true">
-        <button type="button" id="silence" aria-pressed="false">Silence</button>
+        <button type="button" id="silence" aria-pressed="false" aria-keyshortcuts="s">Silence</button>
         <button type="button" id="ui-toggle" aria-expanded="false" aria-controls="rail work">Show interface</button>
         <span class="hint" id="commit-hint">Return enqueues the question</span>
+        <span class="sr" id="ask-hint">Return enqueues the question. Shift and return keeps the line.</span>
       </div>
     </div>
     <button type="button" class="voice" id="voice" aria-label="Voice" aria-pressed="false">
@@ -179,6 +276,7 @@ body[data-ui="minimal"] #error{margin:0}
     </button>
   </form>
   <p id="helpers" hidden aria-live="polite">Helpers are quiet.</p>
+  <p id="loading" role="status" hidden>Reading the question.</p>
   <p id="error" role="alert" hidden></p>
   <div class="work" id="work">
     <section class="panel" id="sources" aria-labelledby="sources-label">
@@ -197,9 +295,21 @@ body[data-ui="minimal"] #error{margin:0}
     <section class="panel" id="notebook" aria-labelledby="notebook-label">
       <h2 id="notebook-label">Notebook</h2>
       <div class="book">
-        <div id="found"><h3>Found</h3><ul id="found-list"></ul><p id="found-empty">Empty.</p></div>
-        <div id="inferred"><h3>Inferred</h3><ul id="inferred-list"></ul><p id="inferred-empty">Empty.</p></div>
-        <div id="unknown"><h3>Unknown</h3><ul id="unknown-list"></ul><p id="unknown-empty">Empty.</p></div>
+        <div class="pile" id="found">
+          <h3 id="found-label">Found<span class="sr">. In a source.</span></h3>
+          <ul id="found-list" aria-label="Found"></ul>
+          <p id="found-empty" aria-label="Found is empty">Empty.</p>
+        </div>
+        <div class="pile" id="inferred">
+          <h3 id="inferred-label">Inferred<span class="sr">. Reasoned from what is in hand.</span></h3>
+          <ul id="inferred-list" aria-label="Inferred"></ul>
+          <p id="inferred-empty" aria-label="Inferred is empty">Empty.</p>
+        </div>
+        <div class="pile" id="unknown">
+          <h3 id="unknown-label">Unknown<span class="sr">. Not established.</span></h3>
+          <ul id="unknown-list" aria-label="Unknown"></ul>
+          <p id="unknown-empty" aria-label="Unknown is empty">Empty.</p>
+        </div>
       </div>
     </section>
     <section class="panel" id="answer" aria-labelledby="answer-label">
@@ -236,6 +346,12 @@ var RESEARCH_CUES=[
 var SOUND_SET=RESEARCH_CUES;
 // The handoff from Galion One is voice-only. The disc is Ice, Sky, and Ocean. No letter is drawn on it.
 var MARK={core:"#58C4FF",edge:"#0B5FA5",ice:"#B8E8FF",stroke:"rgba(184,232,255,0.55)",strokePx:1};
+var motionQuery=window.matchMedia("(prefers-reduced-motion: reduce)");
+function syncMotion(){
+  document.documentElement.setAttribute("data-motion", motionQuery.matches?"reduce":"full");
+}
+syncMotion();
+if(motionQuery.addEventListener) motionQuery.addEventListener("change", syncMotion);
 function markInner(warm){
   var w=Math.max(0,Math.min(1,warm));
   return [Math.round(184-96*w), Math.round(232-36*w), 255];
@@ -323,6 +439,23 @@ function tone(id){
   var LOCAL_SOURCE="What is already known stays marked local.";
   var helpers=document.getElementById("helpers");
   var errorEl=document.getElementById("error");
+  var loadingEl=document.getElementById("loading");
+  var answerEl=document.getElementById("answer");
+  function setBusy(on){
+    if(on){
+      document.body.setAttribute("data-state","loading");
+      answerEl.setAttribute("aria-busy","true");
+      loadingEl.hidden=false;
+      return;
+    }
+    answerEl.removeAttribute("aria-busy");
+    loadingEl.hidden=true;
+    if(document.body.getAttribute("data-state")==="loading") document.body.removeAttribute("data-state");
+  }
+  function clearInvalid(){
+    prompt.removeAttribute("aria-invalid");
+    prompt.removeAttribute("aria-errormessage");
+  }
   function markLocalSources(){
     fillList(document.getElementById("local-list"), [LOCAL_SOURCE]);
     document.getElementById("source-empty").hidden=true;
@@ -330,12 +463,17 @@ function tone(id){
   function clearError(){
     errorEl.hidden=true;
     errorEl.textContent="";
+    clearInvalid();
+    setBusy(false);
     if(document.body.getAttribute("data-state")==="error") document.body.removeAttribute("data-state");
   }
   function showError(message){
     var text=message||"The question was not sent.";
+    setBusy(false);
     errorEl.hidden=false;
     errorEl.textContent=text;
+    prompt.setAttribute("aria-invalid","true");
+    prompt.setAttribute("aria-errormessage","error");
     document.body.setAttribute("data-state","error");
     hermesStatus("Hermes · Error");
     helpers.hidden=false;
@@ -465,13 +603,38 @@ function tone(id){
   document.getElementById("silence").addEventListener("click", function(){
     setSilence(!silenceOn());
   });
+  function setChrome(open){
+    document.body.setAttribute("data-ui", open?"":"minimal");
+    var toggle=document.getElementById("ui-toggle");
+    toggle.textContent=open?"Hide interface":"Show interface";
+    toggle.setAttribute("aria-expanded", open?"true":"false");
+  }
   document.addEventListener("keydown", function(ev){
+    if(ev.key==="Escape"){
+      if(document.body.getAttribute("data-ui")==="minimal") return;
+      ev.preventDefault();
+      setChrome(false);
+      tone("hide");
+      document.getElementById("ui-toggle").focus();
+      return;
+    }
     if(ev.key!=="s"&&ev.key!=="S") return;
     if(ev.metaKey||ev.ctrlKey||ev.altKey||ev.shiftKey) return;
     var tag=ev.target&&ev.target.tagName;
-    if(tag==="TEXTAREA"||tag==="INPUT"||tag==="SELECT") return;
+    var type=ev.target&&ev.target.type;
+    if(tag==="TEXTAREA"||tag==="SELECT") return;
+    if(tag==="INPUT"&&type!=="radio"&&type!=="checkbox") return;
     ev.preventDefault();
     setSilence(!silenceOn());
+  });
+  var themeLive=document.getElementById("theme-live");
+  document.querySelectorAll('input[name="theme"]').forEach(function(input){
+    input.addEventListener("change", function(){
+      if(!input.checked) return;
+      document.body.setAttribute("data-theme", input.value);
+      var name=input.value.charAt(0).toUpperCase()+input.value.slice(1);
+      themeLive.textContent="Theme is "+name+".";
+    });
   });
   function commitQuestion(){
     turnStarted=true;
@@ -479,6 +642,7 @@ function tone(id){
     if(!q){ showError("The question is empty."); return; }
     if(Array.from(q).length>QUESTION_LIMIT){ showError("The question is longer than 2000 characters."); return; }
     clearError();
+    setBusy(true);
     hermesStatus("Hermes · Running");
     helpers.hidden=false;
     helpers.textContent="Helpers: reading, sources, notebook.";
@@ -515,12 +679,10 @@ function tone(id){
       commitQuestion();
     }
   });
-  document.getElementById("ui-toggle").addEventListener("click", function(ev){
-    var minimal=document.body.getAttribute("data-ui")==="minimal";
-    document.body.setAttribute("data-ui", minimal?"":"minimal");
-    ev.currentTarget.textContent=minimal?"Hide interface":"Show interface";
-    ev.currentTarget.setAttribute("aria-expanded", minimal?"true":"false");
-    tone(minimal?"show":"hide");
+  document.getElementById("ui-toggle").addEventListener("click", function(){
+    var open=document.body.getAttribute("data-ui")==="minimal";
+    setChrome(open);
+    tone(open?"show":"hide");
   });
   document.getElementById("allow-experiment").addEventListener("click", function(ev){
     var btn=ev.currentTarget;
