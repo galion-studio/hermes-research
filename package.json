@@ -5,6 +5,7 @@
   "description": "Galion Research, a voice of Galion One. Hermes is the research agent.",
   "scripts": {
     "start": "node src/server.js",
+    "build": "node --check src/cues.js && node --check src/desk.js && node --check src/hermes.js && node --check src/local.js && node --check src/server.js && node --check scripts/check-health.js && node --check test/research.test.js",
     "test": "node --test"
   },
   "engines": {

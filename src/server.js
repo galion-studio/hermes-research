@@ -105,6 +105,11 @@ export function createApp(env = process.env) {
     const path = url.pathname;
     const method = req.method || "GET";
 
+    if (method === "GET" && path === "/health") {
+      json(res, 200, { ok: true, service: "galion-research", bind: "127.0.0.1" });
+      return;
+    }
+
     if (method === "GET" && (path === "/" || path === "/research" || path === "/research/")) {
       send(res, 200, "text/html; charset=utf-8", PAGE);
       return;
