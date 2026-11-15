@@ -171,6 +171,7 @@ body[data-ui="minimal"] #error{margin:0}
         <input id="files" type="file" multiple hidden tabindex="-1" aria-hidden="true">
         <button type="button" id="silence" aria-pressed="false">Silence</button>
         <button type="button" id="ui-toggle" aria-expanded="false" aria-controls="rail work">Show interface</button>
+        <span class="hint" id="file-names" hidden></span>
         <span class="hint" id="commit-hint">Return enqueues the question</span>
       </div>
     </div>
@@ -299,8 +300,7 @@ function tone(id){
     o.start(t); o.stop(t+0.18);
   }catch(e){}
 }
-// TODO: uploads are stubbed. The add-file and add-image icons are UI only.
-// Do not read, store, or send the chosen files. Wire them to the research turn later.
+// Handed files go with the question. The rules live in src/uploads.js.
 (function(){
   var files=document.getElementById("files");
   var prompt=document.getElementById("prompt");
@@ -381,6 +381,7 @@ function tone(id){
       if(!s||!s.text) return;
       if(s.label==="Local") local.push(s.text);
       else if(s.label==="Citation") reading.push((s.n?"["+s.n+"] ":"")+(s.text||""));
+      else if(s.label==="File") reading.push(s.text||"");
     });
     fillList(document.getElementById("local-list"), local);
     fillList(document.getElementById("reading-list"), reading);
@@ -430,23 +431,29 @@ function tone(id){
     }));
     document.getElementById("history-empty").hidden=(items||[]).length>0;
   }
+  // Once a question is committed, these first reads must not relabel or wipe it.
+  var turnStarted=false;
   fetch("/research/hermes",{cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(j){
+    if(turnStarted) return;
     if(!j){ hermesStatus("Hermes · Offline"); return; }
     hermesStatus("Hermes · "+(j.status||"Idle"));
-  }).catch(function(){ hermesStatus("Hermes · Offline"); });
+  }).catch(function(){ if(!turnStarted) hermesStatus("Hermes · Offline"); });
   fetch("/research/history",{cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(j){
-    if(j&&Array.isArray(j.items)) paintHistory(j.items);
-    if(j&&Array.isArray(j.sources)) paintSources(j.sources);
+    if(turnStarted||!j) return;
+    if(Array.isArray(j.items)) paintHistory(j.items);
+    if(Array.isArray(j.sources)) paintSources(j.sources);
   }).catch(function(){});
   function openPicker(ev){ ev.preventDefault(); files.click(); }
   document.getElementById("add-file").addEventListener("click", openPicker);
   document.getElementById("add-image").addEventListener("click", openPicker);
-  files.addEventListener("change", function(){
-    // TODO: accept files here. Nothing is uploaded.
-    var chosen=files.files?files.files.length:0;
-    files.value="";
-    if(chosen>0) document.getElementById("source-empty").textContent="No source yet. The file was not attached.";
-  });
+  function showHandedNames(){
+    var names=[];
+    if(files.files){ for(var i=0;i<files.files.length;i++) names.push(files.files[i].name); }
+    var el=document.getElementById("file-names");
+    el.hidden=names.length===0;
+    el.textContent=names.join(", ");
+  }
+  files.addEventListener("change", showHandedNames);
   document.getElementById("voice").addEventListener("click", function(ev){
     var btn=ev.currentTarget;
     var on=btn.getAttribute("aria-pressed")==="true";
@@ -470,6 +477,7 @@ function tone(id){
     setSilence(!silenceOn());
   });
   function commitQuestion(){
+    turnStarted=true;
     var q=prompt.value.replace(/\s+/g," ").trim();
     if(!q){ showError("The question is empty."); return; }
     if(Array.from(q).length>QUESTION_LIMIT){ showError("The question is longer than 2000 characters."); return; }
@@ -481,7 +489,16 @@ function tone(id){
     document.getElementById("arriving-empty").hidden=true;
     tone("ask");
     setTimeout(function(){ tone("helper"); }, 180);
-    fetch("/research/ask",{method:"POST",cache:"no-store",headers:{"Content-Type":"application/json"},body:JSON.stringify({question:q})})
+    var init={method:"POST",cache:"no-store",headers:{"Content-Type":"application/json"},body:JSON.stringify({question:q})};
+    if(files.files&&files.files.length){
+      var fd=new FormData();
+      fd.append("question", q);
+      for(var i=0;i<files.files.length;i++) fd.append("file", files.files[i]);
+      init={method:"POST",cache:"no-store",body:fd};
+      files.value="";
+      showHandedNames();
+    }
+    fetch("/research/ask", init)
       .then(function(r){
         return r.text().then(function(text){
           var data=null;

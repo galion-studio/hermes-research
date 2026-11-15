@@ -69,6 +69,10 @@ A browser session is the `research_session` cookie. `POST /research/ask`, `GET /
 
 A request body over 32768 bytes, or a question over 2000 characters, is `413` with `status: "Error"`. An empty question or a body that is not JSON is `400` with the same shape. The reply is the limit, not an answer. Citations and sources stay empty, and the question is not stored. The page shows that sentence in the error line. It does not label the failure `Offline` and it does not invent a source.
 
+### Files
+
+Any file can be handed with the question, including a dotfile. There is no type list and no size cap. The bytes stream to a directory outside this repository. The turn hears the file name, the size, and a short text prefix. That prefix length is `EXCERPT_BYTES` in `src/uploads.js`. The file is not a citation.
+
 ## Tests and CI
 
 ```sh
