@@ -139,6 +139,7 @@ describe("forward contract against local stubs", () => {
           GALION_OPENMIND_URL: `http://127.0.0.1:${port}`,
           GALION_VOICE_URL: `http://127.0.0.1:${port}`,
           GALION_UPSTREAM_TIMEOUT_MS: "200",
+          GALION_ASK_TIMEOUT_MS: "200",
         },
         async (base) => {
           const started = Date.now();
@@ -165,6 +166,55 @@ describe("forward contract against local stubs", () => {
       );
     } finally {
       await closed(hung);
+    }
+  });
+
+  it("waits past the probe timeout for a slow forwarded ask", async () => {
+    const voice = await listen((req, res) => {
+      if (req.url === "/health") {
+        res.writeHead(200, { "Content-Type": "text/plain" });
+        res.end("ok");
+        return;
+      }
+      req.resume();
+      setTimeout(() => {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            schema: "galion-research/1",
+            app: "hermes",
+            status: "Returned",
+            reply: "A slow Hermes answer.",
+            citations: [{ n: 1, text: "Handed source" }],
+            found: ["A slow Hermes answer."],
+            inferred: [],
+            unknown: [],
+          }),
+        );
+      }, 600);
+    });
+    try {
+      const voicePort = voice.address().port;
+      await withServer(
+        {
+          GALION_VOICE_URL: `http://127.0.0.1:${voicePort}`,
+          GALION_UPSTREAM_TIMEOUT_MS: "200",
+          GALION_ASK_TIMEOUT_MS: "3000",
+        },
+        async (base) => {
+          const asked = await (
+            await fetch(`${base}/research/ask`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ question: "Take your time." }),
+            })
+          ).json();
+          assert.equal(asked.status, "Returned");
+          assert.deepEqual(asked.citations, [{ n: 1, text: "Handed source" }]);
+        },
+      );
+    } finally {
+      await closed(voice);
     }
   });
 

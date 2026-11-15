@@ -53,7 +53,7 @@ When `GALION_RESEARCH_URL` is unset, or that origin cannot be reached, Hermes is
 | `GALION_LLM_URL` | Loopback `http://127.0.0.1:8642/v1/chat/completions` when unset. Other hosts are refused, so the key is not sent off the machine. A set URL with no mode also attaches, same as galion-one-voice. |
 | `GALION_LLM_MODEL` | Default `hermes-agent`. |
 | `GALION_LLM_KEY` | Optional bearer token. Server-side only. |
-| `GALION_LLM_TIMEOUT_MS` | Default 3000, clamped between 50 and 30000. |
+| `GALION_LLM_TIMEOUT_MS` | Default 3000, clamped between 50 and 95000. The live voice desk uses 85000. |
 
 The research turn uses the Galion Research system prompt from `galion-cascade` `research_turn`. Citation lines are the `[n]` lines the model actually returned. If there is no source, the reply says so and the citation list stays empty. This desk does not invent a paper, a URL, a date, or a measurement.
 

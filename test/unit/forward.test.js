@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   acceptAnswer,
   acceptCitations,
+  askTimeoutFromEnv,
   forwardConfig,
   loopbackOrigin,
   voiceTarget,
@@ -38,6 +39,18 @@ describe("loopback forward config", () => {
     assert.equal(cfg.openmind.state, "unset");
     assert.equal(cfg.voice.state, "unset");
     assert.equal(cfg.timeoutMs, 4_000);
+    assert.equal(cfg.askTimeoutMs, 90_000);
+  });
+
+  it("gives a forwarded ask the voice desk's Hermes window and stays under Cloudflare's 100 s", () => {
+    assert.equal(askTimeoutFromEnv({}), 90_000);
+    assert.equal(askTimeoutFromEnv({ GALION_ASK_TIMEOUT_MS: "85000" }), 85_000);
+    assert.equal(askTimeoutFromEnv({ GALION_ASK_TIMEOUT_MS: "600000" }), 95_000);
+    assert.equal(askTimeoutFromEnv({ GALION_ASK_TIMEOUT_MS: "1" }), 50);
+    assert.equal(askTimeoutFromEnv({ GALION_ASK_TIMEOUT_MS: "soon" }), 90_000);
+    const cfg = forwardConfig({ GALION_UPSTREAM_TIMEOUT_MS: "600000", GALION_ASK_TIMEOUT_MS: "85000" });
+    assert.equal(cfg.timeoutMs, 4_000);
+    assert.equal(cfg.askTimeoutMs, 85_000);
   });
 });
 

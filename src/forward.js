@@ -8,12 +8,24 @@ import { isLoopback, parseLoopbackChatUrl } from "./hermes.js";
 
 export const OPENMIND_PORT = 18181;
 export const DEFAULT_UPSTREAM_TIMEOUT_MS = 4_000;
+// A research ask waits on Hermes through the voice desk, which allows 85 s.
+// Cloudflare drops an origin reply after 100 s, so the ask stays under that.
+export const DEFAULT_ASK_TIMEOUT_MS = 90_000;
+export const MAX_ASK_TIMEOUT_MS = 95_000;
 const BODY_CAP = 64 * 1024;
 
 export function timeoutFromEnv(env = process.env) {
   const timeout = Number(env.GALION_UPSTREAM_TIMEOUT_MS);
   if (!Number.isFinite(timeout)) return DEFAULT_UPSTREAM_TIMEOUT_MS;
   return Math.min(DEFAULT_UPSTREAM_TIMEOUT_MS, Math.max(50, timeout));
+}
+
+export function askTimeoutFromEnv(env = process.env) {
+  const raw = env.GALION_ASK_TIMEOUT_MS;
+  if (raw == null || String(raw).trim() === "") return DEFAULT_ASK_TIMEOUT_MS;
+  const timeout = Number(raw);
+  if (!Number.isFinite(timeout)) return DEFAULT_ASK_TIMEOUT_MS;
+  return Math.min(MAX_ASK_TIMEOUT_MS, Math.max(50, timeout));
 }
 
 export function loopbackOrigin(raw) {
@@ -52,6 +64,7 @@ export function forwardConfig(env = process.env) {
     openmind: loopbackOrigin(env.GALION_OPENMIND_URL),
     voice: voiceTarget(env),
     timeoutMs: timeoutFromEnv(env),
+    askTimeoutMs: askTimeoutFromEnv(env),
   };
 }
 
