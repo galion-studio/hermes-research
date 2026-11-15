@@ -15,7 +15,7 @@ This desk does not start either process, and it does not bind 18181.
 | --- | --- | --- |
 | `GALION_OPENMIND_URL` | openmind-desktop | Loopback origin only. Example: `http://127.0.0.1:18181`. |
 | `GALION_VOICE_URL` | galion-one-voice web surface | Loopback origin only. When set, this is the voice upstream. |
-| `GALION_RESEARCH_URL` | older research origin | Used only when `GALION_VOICE_URL` is unset. A loopback `http` origin is the same voice wire. An `https` origin is still forwarded for the JSON routes and is not probed. |
+| `GALION_RESEARCH_URL` | older research origin | Used only when `GALION_VOICE_URL` is unset. The same loopback `http` rule applies. `https` and any other host are refused and are not dialed. |
 | `GALION_UPSTREAM_TIMEOUT_MS` | both | Default 4000. Clamped from 50 to 4000. |
 
 `GET /one` redirects to `{GALION_OPENMIND_URL}/one` when that value is an accepted loopback origin. Otherwise it stays `GALION_ONE_URL`, default `https://galion.app/one`.
@@ -45,8 +45,7 @@ States:
 | State | Meaning |
 | --- | --- |
 | `unset` | That variable is empty. |
-| `refused` | The value is not loopback `http`. Nothing is dialed. |
-| `public` | `GALION_VOICE_URL` is unset and `GALION_RESEARCH_URL` is `https`. The JSON routes still forward. The probe does not dial it. |
+| `refused` | The value is not loopback `http`. Nothing is dialed. The ask uses Hermes, then local knowledge, and that local answer has an empty citation list. |
 | `up` | Open Mind returned both entry pages, or the voice `/health` body was `ok`, or Hermes `GET /health` on its loopback port was 2xx. |
 | `down` | The connection failed, or the status was outside 2xx. |
 | `timeout` | The exchange passed `GALION_UPSTREAM_TIMEOUT_MS`. |

@@ -294,4 +294,68 @@ describe("forward contract against local stubs", () => {
       },
     );
   });
+
+  it("refuses an https research origin and falls through with an empty citation list", async () => {
+    let hermesHits = 0;
+    const hermes = await listen((req, res) => {
+      hermesHits += 1;
+      req.resume();
+      if (req.url === "/health") {
+        res.writeHead(200, { "Content-Type": "text/plain" });
+        res.end("ok");
+        return;
+      }
+      const content = "Found\n- The wash is Ink and Sky.\n[1] Handed source";
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ choices: [{ message: { content } }] }));
+    });
+    try {
+      const hermesPort = hermes.address().port;
+      await withServer(
+        {
+          GALION_RESEARCH_URL: "https://galion.app",
+          GALION_LLM: "hermes",
+          GALION_LLM_URL: `http://127.0.0.1:${hermesPort}/v1/chat/completions`,
+          GALION_LLM_TIMEOUT_MS: "500",
+        },
+        async (base) => {
+          const started = Date.now();
+          const wire = await (await fetch(`${base}/research/wire`)).json();
+          const asked = await (
+            await fetch(`${base}/research/ask`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ question: "What colour is the wash?" }),
+            })
+          ).json();
+          assert.ok(Date.now() - started < 1_000);
+          assert.equal(wire.upstreams.voice.state, "refused");
+          assert.equal(wire.hermes.state, "up");
+          assert.equal(asked.status, "Returned");
+          assert.deepEqual(asked.citations, [{ n: 1, text: "Handed source" }]);
+          assert.equal(JSON.stringify(asked).includes(SENTINEL), false);
+        },
+      );
+      assert.ok(hermesHits >= 1);
+      await withServer({ GALION_RESEARCH_URL: "https://galion.app" }, async (base) => {
+        const started = Date.now();
+        const wire = await (await fetch(`${base}/research/wire`)).json();
+        const asked = await (
+          await fetch(`${base}/research/ask`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ question: "Cite the paper." }),
+          })
+        ).json();
+        assert.ok(Date.now() - started < 1_000);
+        assert.equal(wire.upstreams.voice.state, "refused");
+        assert.equal(wire.hermes.state, "offline");
+        assert.equal(asked.status, "Offline");
+        assert.deepEqual(asked.citations, []);
+        assert.equal(JSON.stringify(asked).includes(SENTINEL), false);
+      });
+    } finally {
+      await closed(hermes);
+    }
+  });
 });

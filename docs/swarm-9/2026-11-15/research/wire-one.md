@@ -46,7 +46,11 @@ A separate Chromium pass opened the served desk (not committed):
 
 ## Decisions for Maciej
 
-1. `GALION_VOICE_URL` is the loopback voice upstream. `GALION_RESEARCH_URL` is used only when that is unset. An `https` research origin still forwards the JSON routes and is reported as `public` without a probe. Say if that `https` forward should stop.
+1. Review on pull request 7 asked for the `https` research origin to be refused. `GALION_RESEARCH_URL` now uses the same loopback rule as `GALION_VOICE_URL`. An `https` value is not dialed. The ask uses Hermes, then local knowledge with an empty citation list. `README.md` still describes the old `https://galion.app` origin. That file is on draft #6, so this branch leaves it.
 2. Open Mind is not dialed until `GALION_OPENMIND_URL` is set. The example is `http://127.0.0.1:18181`. Say if an empty value should mean that address.
 3. The galion-one-voice web surface in the file I read uses `127.0.0.1:0` in tests. This contract does not pick a default voice port.
 4. The Swarm 9 research plan draft was not on GitHub at 15:29+01:00. This lane followed the worker brief.
+
+## Review, 2026-11-15T15:34:00+01:00
+
+The merge was held because `voiceTarget` still forwarded an `https` `GALION_RESEARCH_URL`. That path now returns `refused` and `forward: null`, the same result as `loopbackOrigin`. `main` was still `ed3ce99` when this was written. The uploads change was not on `main`, so this branch was not updated from it. Drafts #1 and #6 were not edited.

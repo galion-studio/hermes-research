@@ -6,20 +6,6 @@
 
 import { isLoopback, parseLoopbackChatUrl } from "./hermes.js";
 
-function legacyForwardOrigin(raw) {
-  if (raw == null || !String(raw).trim()) return null;
-  let url;
-  try {
-    url = new URL(String(raw).trim());
-  } catch {
-    return null;
-  }
-  if (url.username || url.password) return null;
-  if (url.protocol === "https:") return url.origin;
-  if (url.protocol === "http:" && isLoopback(url.hostname)) return url.origin;
-  return null;
-}
-
 export const OPENMIND_PORT = 18181;
 export const DEFAULT_UPSTREAM_TIMEOUT_MS = 4_000;
 const BODY_CAP = 64 * 1024;
@@ -56,11 +42,9 @@ export function voiceTarget(env = process.env) {
   if (legacy == null || String(legacy).trim() === "") {
     return { origin: null, state: "unset", forward: null };
   }
-  const loop = loopbackOrigin(legacy);
-  if (loop.state === "ok") return { origin: loop.origin, state: "ok", forward: loop.origin };
-  const publicOrigin = legacyForwardOrigin(legacy);
-  if (publicOrigin) return { origin: null, state: "public", forward: publicOrigin };
-  return { origin: null, state: "refused", forward: null };
+  const parsed = loopbackOrigin(legacy);
+  if (parsed.state === "ok") return { origin: parsed.origin, state: "ok", forward: parsed.origin };
+  return { origin: null, state: parsed.state, forward: null };
 }
 
 export function forwardConfig(env = process.env) {

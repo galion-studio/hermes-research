@@ -31,8 +31,8 @@ describe("loopback forward config", () => {
     assert.equal(refused.state, "refused");
     assert.equal(refused.forward, null);
     const legacy = voiceTarget({ GALION_RESEARCH_URL: "https://galion.app" });
-    assert.equal(legacy.state, "public");
-    assert.equal(legacy.forward, "https://galion.app");
+    assert.equal(legacy.state, "refused");
+    assert.equal(legacy.forward, null);
     assert.equal(legacy.origin, null);
     const cfg = forwardConfig({});
     assert.equal(cfg.openmind.state, "unset");
