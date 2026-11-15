@@ -177,8 +177,8 @@ function readCapped(res, cap) {
 export function researchTurn(config, user) {
   const target = parseLoopbackChatUrl(config.url || "");
   const text = clipChars(String(user ?? "").trim(), 2_000);
-  if (!target || !text) return Promise.resolve({ text: UNREACHABLE, citations: [] });
-  if (config.key && !keyOk(config.key)) return Promise.resolve({ text: UNREACHABLE, citations: [] });
+  if (!target || !text) return Promise.resolve({ text: UNREACHABLE, citations: [], cause: "refused" });
+  if (config.key && !keyOk(config.key)) return Promise.resolve({ text: UNREACHABLE, citations: [], cause: "refused" });
 
   const body = JSON.stringify({
     model: config.model || LLM_NAME,
@@ -190,6 +190,16 @@ export function researchTurn(config, user) {
   const timeout = config.timeoutMs || DEFAULT_TIMEOUT_MS;
 
   return new Promise((resolve) => {
+    let settled = false;
+    let incoming = null;
+    let timer = null;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(result);
+    };
+    const miss = (cause) => finish({ text: UNREACHABLE, citations: [], cause });
     const req = http.request(
       {
         hostname: target.hostname,
@@ -204,28 +214,35 @@ export function researchTurn(config, user) {
         },
       },
       (res) => {
+        incoming = res;
         readCapped(res, 64 * 1024)
           .then((payload) => {
             if (res.statusCode < 200 || res.statusCode >= 300) {
-              resolve({ text: UNREACHABLE, citations: [] });
+              miss("status");
               return;
             }
             const content = assistantContent(payload);
             if (content == null) {
-              resolve({ text: UNREACHABLE, citations: [] });
+              miss("response");
               return;
             }
-            resolve({
+            finish({
               citations: citeLines(content),
               text: guardText(content, 4_000),
               raw: content,
+              cause: "returned",
             });
           })
-          .catch(() => resolve({ text: UNREACHABLE, citations: [] }));
+          .catch(() => miss("response"));
       },
     );
-    req.setTimeout(timeout, () => req.destroy());
-    req.on("error", () => resolve({ text: UNREACHABLE, citations: [] }));
+    // Wall clock. A socket timeout would reset while bytes trickle in.
+    timer = setTimeout(() => {
+      incoming?.destroy();
+      req.destroy();
+      miss("timeout");
+    }, timeout);
+    req.on("error", () => miss("unreachable"));
     req.end(body);
   });
 }

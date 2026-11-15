@@ -6,6 +6,8 @@ The desk is the page already live at [galion.app/research](https://galion.app/re
 
 The voice is: Galion Research. What are we looking into? The handoff from Galion One is voice-only. No letter is drawn on the disc. The disc is Ice, Sky, and Ocean.
 
+The rail offers four themes: Ink, Ice, Sky, and Ocean. Ink is the one the desk opens on. The ground stays Ink in all four, so Ice and Sky text keep their contrast. The disc does not change colour. Focus rings are Sky, 2 px, with a 3 px offset. Escape hides the interface. Return enqueues the question. Shift and return keeps the line. Found, Inferred, and Unknown each have a screen-reader name. Reduced motion holds the disc and skips transitions. A question in flight says `Reading the question.` An empty desk, an empty question, and an offline answer stay separate states.
+
 Ultra is $220/€220 per month. That line is copy, not a checkout.
 
 Hermes is the research agent. This process does not ship a voice model, a clone, or an audio file. Research cues are 432 Hz just-intonation ratios in `src/cues.js` and on the page. Definitions only. Silence, and `?silence=1`, keeps those cues quiet. The Silence control sits on the field. Typing in the field does not toggle it. `s` does, when focus is outside the field.
@@ -61,13 +63,19 @@ While a question is in flight the page shows one line: `Helpers: reading, source
 
 If the galion-one-voice origin is down and Hermes does not answer, the desk continues from local knowledge and marks the answer `Offline`. The quiet line is `Helpers are quiet. Local knowledge carries the question.` The reply says `Offline` and `Local`. Citations stay empty. A local line is labelled `Local` in that session's sources. It is not a citation. What this process already knows is the voice, the price, the palette, and the connection to Galion One. It does not fill a gap with a made-up source.
 
+A Hermes timeout and a dropped Hermes connection both stay on that path. The timeout is a wall clock (`GALION_LLM_TIMEOUT_MS`), so a slow trickle cannot hold the turn open. Found, Inferred, and Unknown are unchanged. Silence and the 432 Hz cues are unchanged.
+
 ### Sources stay on the session
 
-A browser session is the `research_session` cookie. `POST /research/ask`, `GET /research/history`, and `GET /research/sources` read and write that session only. A citation is stored with the label `Citation` only when the turn returned one. Another session does not see it.
+A browser session is the `research_session` cookie: `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/`, and no `Domain`. It is a session cookie. `POST /research/ask`, `GET /research/history`, and `GET /research/sources` read and write that session only. A citation is stored with the label `Citation` only when the turn returned one. Another session does not see it.
+
+### Response headers
+
+Every response sends a content security policy. The page's style and script carry a per-response nonce, and inline sources without it are refused. The other headers are `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, a closed camera, microphone, geolocation, and payment policy, and the same-origin opener and resource policies.
 
 ### Limits and errors
 
-A request body over 32768 bytes, or a question over 2000 characters, is `413` with `status: "Error"`. An empty question or a body that is not JSON is `400` with the same shape. The reply is the limit, not an answer. Citations and sources stay empty, and the question is not stored. The page shows that sentence in the error line. It does not label the failure `Offline` and it does not invent a source.
+A request body over 32768 bytes, or a question over 2000 characters, is `413` with `status: "Error"`. An empty question or a body that is not JSON is `400`. An unknown path is `404`. A known path with the wrong method is `405`. More than 30 questions, or more than 240 requests, from one session in 60 seconds is `429`. `GALION_ASK_RATE` and `GALION_RATE_LIMIT` override those two caps. Each of those responses is the same JSON shape: `error`, `reply`, and empty citations, found, inferred, unknown, and sources. The reply is the limit, not an answer. The question is not stored. The page shows that sentence in the error line. It does not label the failure `Offline` and it does not invent a source. A plain-text refusal from the research origin is rewritten into that same shape.
 
 ### Files
 
@@ -80,15 +88,15 @@ npm run build
 npm test
 ```
 
-Node 22, no packages. `npm run build` is a syntax check of the sources, the health check, and the tests. There is no bundle step. `npm test` runs the unit tests, the integration tests against a stub Hermes, and `test/research.test.js`. The unit tests cover local knowledge, the size limits, the loopback rule, and per-session sources without opening a socket. The integration tests speak only to a stub Hermes on the loopback interface. The page tests cover Silence, the Offline mark, a loopback Hermes turn that keeps the key out of the reply, citation lines, the notebook piles, the forward to a `/research` origin, `GET /health`, and the deploy kit.
+Node 22, no packages. `npm run build` is a syntax check of the sources, the health check, and the tests. There is no bundle step. `npm test` runs the unit tests, the integration tests against a stub Hermes, `test/research.test.js`, and `npm audit` for this package and for `e2e/`. The unit tests cover local knowledge, the size limits, the rate limit, the cookie flags, the loopback rule, and per-session sources without opening a socket. The integration tests stay on the loopback interface, including a timeout and a dropped connection. The page tests cover Silence, the Offline mark, a loopback Hermes turn that keeps the key out of the reply, citation lines, the notebook piles, the forward to a `/research` origin, `GET /health`, and the deploy kit.
 
 Desktop and phone screenshots, plus the accessibility checks:
 
 ```sh
-cd e2e && npm ci && npx playwright test
+cd e2e && npm ci && npx playwright install chromium && npx playwright test
 ```
 
-GitHub Actions (`.github/workflows/ci.yml`) runs `npm run build`, `npm test`, and the Playwright suite on push and on pull request. This draft does not deploy.
+GitHub Actions (`.github/workflows/ci.yml`) runs `npm run build`, `npm run audit`, `npm test`, and the Playwright suite on push and on pull request. The workflow installs Chromium with its system libraries before the suite. It does not deploy.
 
 ## Deploy kit
 

@@ -23,7 +23,7 @@ The shape follows [galion-one-voice `scripts/deploy/release-dryrun.sh`](https://
 
 ## Listener
 
-`src/server.js` binds `127.0.0.1`. The unit sets `PORT=8787` after the environment file, so the listen address is `127.0.0.1:8787`. A `PORT` line in the env file does not move it.
+`src/server.js` binds `127.0.0.1`. A host argument cannot move it. The unit sets `PORT=8787` after the environment file, so the listen address is `127.0.0.1:8787`. A `PORT` line in the env file does not move it. Responses carry a content security policy and the other desk headers. The health check still only looks at the loopback bind.
 
 Sandbox:
 

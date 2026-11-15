@@ -112,6 +112,25 @@ describe("page", () => {
       "Perpetual Open MIT License",
       "Copyright © 2026 Galion Labs. All rights reserved.",
       "Permission is hereby granted, free of charge",
+      'data-theme="ink"',
+      'name="theme"',
+      'aria-label="Found"',
+      'aria-label="Inferred"',
+      'aria-label="Unknown"',
+      'aria-label="Found is empty"',
+      'aria-label="Inferred is empty"',
+      'aria-label="Unknown is empty"',
+      "In a source.",
+      "Reasoned from what is in hand.",
+      "Not established.",
+      'id="loading"',
+      "Reading the question.",
+      "prefers-reduced-motion",
+      "--om-ink:#0B0F14",
+      "--om-ice:#B8E8FF",
+      "--om-sky:#58C4FF",
+      "--om-ocean:#0B5FA5",
+      "Skip to ask",
     ]) {
       assert.ok(html.includes(needle), `missing ${needle}`);
     }
@@ -299,7 +318,11 @@ describe("server", () => {
       assert.equal(healthBody.bind, "127.0.0.1");
       assert.equal(JSON.stringify(healthBody).includes(KEY), false);
       const healthPost = await fetch(`${base}/health`, { method: "POST" });
-      assert.equal(healthPost.status, 404);
+      assert.equal(healthPost.status, 405);
+      const healthPostBody = await healthPost.json();
+      assert.equal(healthPostBody.status, "Error");
+      assert.equal(healthPostBody.error, "method");
+      assert.deepEqual(healthPostBody.citations, []);
     });
   });
 

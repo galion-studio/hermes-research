@@ -17,7 +17,14 @@ function shotDir() {
 }
 
 const shots = shotDir();
+const docs = join(fileURLToPath(new URL("../docs/swarm-9/2026-11-15/research/", import.meta.url)));
+mkdirSync(docs, { recursive: true });
 const allowed = [108, 216, 288, 432, 540, 648, 864];
+
+async function saveShot(page, name, options = {}) {
+  await page.screenshot({ path: join(shots, name), ...options });
+  await page.screenshot({ path: join(docs, name), ...options });
+}
 
 function relLum(r, g, b) {
   const channel = (c) => {
@@ -141,7 +148,7 @@ test("desktop opens on the bare field", async ({ page }) => {
   expect(sample.disc[3]).toBeGreaterThan(200);
   expect(sample.disc[2]).toBeGreaterThan(sample.disc[0]);
   expect(Math.min(...sample.disc.slice(0, 3))).toBeLessThan(210);
-  await page.screenshot({ path: join(shots, "research-minimal-desktop.png") });
+  await saveShot(page, "research-minimal-desktop.png");
 });
 
 test("desktop desk keeps the research labels", async ({ page }) => {
@@ -158,7 +165,7 @@ test("desktop desk keeps the research labels", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Allow this experiment" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Add an image" })).toBeVisible();
   await expect(page.locator("#experiment")).toContainText("Ask first");
-  await page.screenshot({ path: join(shots, "research-desk-desktop.png"), fullPage: true });
+  await saveShot(page, "research-desk-desktop.png", { fullPage: true });
 
   await page.getByRole("button", { name: "Hide interface" }).click();
   await expect(page.locator("#work")).toBeHidden();
@@ -177,13 +184,19 @@ test("phone keeps the field, the disc, and the file plus", async ({ page }) => {
   const voice = await page.locator("#voice").boundingBox();
   expect(field.width).toBeGreaterThan(280);
   expect(voice.y).toBeGreaterThan(field.y + field.height - 4);
-  await page.screenshot({ path: join(shots, "research-minimal-phone.png") });
+  await saveShot(page, "research-minimal-phone.png");
 
   await page.getByRole("button", { name: "Show interface" }).click();
   await expect(page.getByRole("heading", { name: "Found" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Inferred" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Unknown" })).toBeVisible();
-  await page.screenshot({ path: join(shots, "research-desk-phone.png"), fullPage: true });
+  await saveShot(page, "research-desk-phone.png", { fullPage: true });
+  const phoneOpen = await seriousViolations(page);
+  expect(phoneOpen).toEqual([]);
+  await page.getByRole("button", { name: "Hide interface" }).click();
+  await expect(page.locator("#work")).toBeHidden();
+  const phoneBare = await seriousViolations(page);
+  expect(phoneBare).toEqual([]);
 });
 
 test("Silence keeps the 432 Hz cues quiet", async ({ page }) => {
@@ -200,7 +213,7 @@ test("Silence keeps the 432 Hz cues quiet", async ({ page }) => {
   await expect(page.locator("#silence")).toHaveAttribute("aria-pressed", "true");
   const frozen = await page.locator("body").getAttribute("data-cues");
   const count = await page.evaluate(() => window.__tones.length);
-  await page.screenshot({ path: join(shots, "research-silence-desktop.png") });
+  await saveShot(page, "research-silence-desktop.png");
   await page.locator("#voice").click();
   await page.locator("#ui-toggle").click();
   await page.waitForTimeout(250);
@@ -310,7 +323,7 @@ test("text and the disc meet WCAG AA", async ({ page }) => {
   await page.getByRole("button", { name: "Hide interface" }).click();
   const bare = await seriousViolations(page);
   expect(bare).toEqual([]);
-  await page.screenshot({ path: join(shots, "research-contrast-desktop.png") });
+  await saveShot(page, "research-contrast-desktop.png");
 });
 
 test("a local question leaves the citation list empty", async ({ page }) => {
@@ -320,11 +333,276 @@ test("a local question leaves the citation list empty", async ({ page }) => {
   await page.locator("#prompt").fill("Who are you?");
   await page.locator("#prompt").press("Enter");
   await expect(page.locator("#reading-body")).toContainText("Galion Research. What are we looking into?");
+  await expect(page.locator("#reading-body")).toContainText("Offline");
+  await expect(page.locator("body")).toHaveAttribute("data-state", "offline");
+  await expect(page.locator("#hermes-status")).toContainText("Offline");
+  await expect(page.locator("#error")).toBeHidden();
   await expect(page.locator("#unknown-list li")).toHaveCount(1);
   await expect(page.locator("#found-list li")).toHaveCount(0);
+  await expect(page.locator("#local-list li")).toHaveCount(1);
   await expect(page.locator("#citation-empty")).toBeVisible();
+  await expect(page.locator("#citation-list li")).toHaveCount(0);
   await expect(page.locator("#helpers")).toContainText("Local knowledge carries the question.");
-  await page.screenshot({ path: join(shots, "research-answer-desktop.png"), fullPage: true });
+  await saveShot(page, "research-answer-desktop.png", { fullPage: true });
+});
+
+test("an empty question stays an error", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/research");
+  await page.getByRole("button", { name: "Show interface" }).click();
+  await expect(page.locator("#hermes-status")).toContainText("Offline");
+  await page.locator("#prompt").press("Enter");
+  await expect(page.locator("#error")).toHaveText("The question is empty.");
+  await expect(page.locator("body")).toHaveAttribute("data-state", "error");
+  await expect(page.locator("#hermes-status")).toContainText("Error");
+  await expect(page.locator("#hermes-status")).not.toContainText("Offline");
+  await expect(page.locator("#citation-list li")).toHaveCount(0);
+  await expect(page.locator("#found-list li")).toHaveCount(0);
+});
+
+test("a late status read does not relabel an empty question", async ({ page }) => {
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/research/hermes", async (route) => {
+    await gate;
+    await route.continue();
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/research");
+  await page.getByRole("button", { name: "Show interface" }).click();
+  await page.locator("#prompt").press("Enter");
+  await expect(page.locator("#hermes-status")).toContainText("Error");
+  release();
+  await page.waitForResponse("**/research/hermes");
+  await expect(page.locator("body")).toHaveAttribute("data-state", "error");
+  await expect(page.locator("#hermes-status")).toHaveText("Hermes · Error");
+});
+
+test("a late history read does not wipe an offline answer", async ({ page }) => {
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  let held = false;
+  await page.route("**/research/history", async (route) => {
+    if (!held && route.request().method() === "GET") {
+      held = true;
+      await gate;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ schema: "galion-research/1", items: [], sources: [] }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/research");
+  await page.getByRole("button", { name: "Show interface" }).click();
+  await page.locator("#prompt").fill("Who are you?");
+  await page.locator("#prompt").press("Enter");
+  await expect(page.locator("body")).toHaveAttribute("data-state", "offline");
+  await expect(page.locator("#local-list li")).toHaveCount(1);
+  const stale = page.waitForResponse(
+    (res) => res.url().includes("/research/history") && res.request().method() === "GET",
+  );
+  release();
+  await stale;
+  await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 50)));
+  await expect(page.locator("body")).toHaveAttribute("data-state", "offline");
+  await expect(page.locator("#reading-body")).toContainText("Offline");
+  await expect(page.locator("#local-list li")).toHaveCount(1);
+  await expect(page.locator("#citation-list li")).toHaveCount(0);
+});
+
+test("keyboard moves through the bare field and Escape hides the desk", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/research");
+  await page.keyboard.press("Tab");
+  await expect(page.locator("a.skip")).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#prompt")).toBeFocused();
+  const fieldOutline = await page.locator(".field").evaluate((el) => getComputedStyle(el).outlineStyle);
+  expect(fieldOutline).not.toBe("none");
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#add-file")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#silence")).toBeFocused();
+  const silenceOutline = await page.locator("#silence").evaluate((el) => getComputedStyle(el).outlineWidth);
+  expect(silenceOutline).not.toBe("0px");
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#ui-toggle")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#voice")).toBeFocused();
+  await saveShot(page, "research-focus-desktop.png");
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#voice")).toHaveAttribute("aria-pressed", "true");
+
+  await page.locator("#prompt").focus();
+  await page.locator("#prompt").fill("kept");
+  await page.locator("#prompt").press("Shift+Enter");
+  await expect(page.locator("#prompt")).toHaveValue("kept\n");
+  await expect(page.locator("body")).toHaveAttribute("data-state", "empty");
+
+  await page.locator("#ui-toggle").focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#work")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#work")).toBeHidden();
+  await expect(page.locator("#ui-toggle")).toBeFocused();
+  await expect(page.locator("#ui-toggle")).toHaveText("Show interface");
+  await expect(page.locator("#prompt")).toHaveValue("kept\n");
+});
+
+test("Found, Inferred, and Unknown have screen-reader names on an empty desk", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/research");
+  await page.getByRole("button", { name: "Show interface" }).click();
+  await expect(page.locator("#found-list")).toHaveAttribute("aria-label", "Found");
+  await expect(page.locator("#inferred-list")).toHaveAttribute("aria-label", "Inferred");
+  await expect(page.locator("#unknown-list")).toHaveAttribute("aria-label", "Unknown");
+  await expect(page.locator("#found-empty")).toHaveAttribute("aria-label", "Found is empty");
+  await expect(page.locator("#inferred-empty")).toHaveAttribute("aria-label", "Inferred is empty");
+  await expect(page.locator("#unknown-empty")).toHaveAttribute("aria-label", "Unknown is empty");
+  await expect(page.locator("#found-label")).toHaveAccessibleName(/In a source/);
+  await expect(page.locator("#inferred-label")).toHaveAccessibleName(/Reasoned from what is in hand/);
+  await expect(page.locator("#unknown-label")).toHaveAccessibleName(/Not established/);
+  await expect(page.locator("#found-empty")).toBeVisible();
+  await expect(page.locator("#history-empty")).toHaveText("No request yet.");
+  await expect(page.locator("#citation-empty")).toHaveText("None in hand.");
+  await expect(page.locator("#source-empty")).toHaveText("No source yet.");
+  await expect(page.locator("#loading")).toBeHidden();
+  await expect(page.locator("#error")).toBeHidden();
+  const empty = await seriousViolations(page);
+  expect(empty).toEqual([]);
+  await saveShot(page, "research-empty-desktop.png", { fullPage: true });
+});
+
+test("a question in flight shows loading, then the offline answer", async ({ page }) => {
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/research/ask", async (route) => {
+    await gate;
+    await route.continue();
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/research");
+  await page.getByRole("button", { name: "Show interface" }).click();
+  await page.locator("#prompt").fill("What is in hand?");
+  await page.locator("#prompt").press("Enter");
+  await expect(page.locator("body")).toHaveAttribute("data-state", "loading");
+  await expect(page.locator("#loading")).toHaveText("Reading the question.");
+  await expect(page.locator("#answer")).toHaveAttribute("aria-busy", "true");
+  await expect(page.locator("#hermes-status")).toHaveText("Hermes · Running");
+  await expect(page.locator("#error")).toBeHidden();
+  await expect(page.locator("#helpers")).toHaveText("Helpers: reading, sources, notebook.");
+  const loading = await seriousViolations(page);
+  expect(loading).toEqual([]);
+  await saveShot(page, "research-loading-desktop.png", { fullPage: true });
+  release();
+  await expect(page.locator("body")).toHaveAttribute("data-state", "offline");
+  await expect(page.locator("#loading")).toBeHidden();
+  await expect(page.locator("#answer")).not.toHaveAttribute("aria-busy", "true");
+  await expect(page.locator("#error")).toBeHidden();
+});
+
+test("an empty question is an error on the phone and the desktop", async ({ page }) => {
+  for (const [width, height, name] of [
+    [1440, 900, "research-error-desktop.png"],
+    [390, 844, "research-error-phone.png"],
+  ]) {
+    await page.setViewportSize({ width, height });
+    await page.goto("/research");
+    await page.getByRole("button", { name: "Show interface" }).click();
+    await expect(page.locator("#hermes-status")).toContainText("Offline");
+    await page.locator("#prompt").press("Enter");
+    await expect(page.locator("#error")).toHaveText("The question is empty.");
+    await expect(page.locator("body")).toHaveAttribute("data-state", "error");
+    await expect(page.locator("#prompt")).toHaveAttribute("aria-invalid", "true");
+    await expect(page.locator("#prompt")).toHaveAttribute("aria-errormessage", "error");
+    await expect(page.locator("#loading")).toBeHidden();
+    await expect(page.locator("#hermes-status")).toHaveText("Hermes · Error");
+    const violations = await seriousViolations(page);
+    expect(violations).toEqual([]);
+    await saveShot(page, name, { fullPage: true });
+  }
+});
+
+test("phone and desktop stay within the viewport", async ({ page }) => {
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/research");
+    const bare = await page.evaluate(() => ({
+      scroll: document.documentElement.scrollWidth,
+      client: document.documentElement.clientWidth,
+    }));
+    expect(bare.scroll).toBeLessThanOrEqual(bare.client + 1);
+    await page.getByRole("button", { name: "Show interface" }).click();
+    const open = await page.evaluate(() => ({
+      scroll: document.documentElement.scrollWidth,
+      client: document.documentElement.clientWidth,
+    }));
+    expect(open.scroll).toBeLessThanOrEqual(open.client + 1);
+    const voice = await page.locator("#voice").boundingBox();
+    const field = await page.locator(".field").boundingBox();
+    if (viewport.width < 800) expect(voice.y).toBeGreaterThan(field.y + field.height - 4);
+    else expect(voice.x).toBeGreaterThan(field.x + field.width - 8);
+  }
+});
+
+test("Ink, Ice, Sky, and Ocean keep the notebook readable", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/research");
+  await page.getByRole("button", { name: "Show interface" }).click();
+  await expect(page.getByRole("group", { name: "Theme" })).toBeVisible();
+  await expect(page.locator("body")).toHaveAttribute("data-theme", "ink");
+  await page.getByRole("radio", { name: "Ink" }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("radio", { name: "Ice" })).toBeChecked();
+  const ring = await page.locator(".themes label:focus-within").evaluate((el) => getComputedStyle(el).outlineStyle);
+  expect(ring).not.toBe("none");
+  for (const name of ["Ice", "Sky", "Ocean", "Ink"]) {
+    await page.getByRole("radio", { name }).check();
+    await expect(page.locator("body")).toHaveAttribute("data-theme", name.toLowerCase());
+    await expect(page.locator("#theme-live")).toHaveText(`Theme is ${name}.`);
+    const sample = await paint(page);
+    expect(parseRgb(sample.found)).toEqual([184, 232, 255]);
+    expect(parseRgb(sample.inferred)).toEqual([88, 196, 255]);
+    expect(parseRgb(sample.unknown)).toEqual([230, 237, 243]);
+    const panel = parseRgb(sample.panel);
+    const body = parseRgb(sample.body);
+    expect(contrast(parseRgb(sample.found), panel)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(parseRgb(sample.inferred), panel)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(parseRgb(sample.unknown), panel)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(parseRgb(sample.prompt), parseRgb(sample.field))).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(sample.disc.slice(0, 3), body)).toBeGreaterThanOrEqual(3);
+    const violations = await seriousViolations(page);
+    expect(violations).toEqual([]);
+    await saveShot(page, `research-theme-${name.toLowerCase()}.png`, { fullPage: true });
+  }
+});
+
+test("reduced motion skips the page transition", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/research");
+  await expect(page.locator("html")).toHaveAttribute("data-motion", "reduce");
+  const ms = await page.evaluate(() => {
+    const value = getComputedStyle(document.body).transitionDuration;
+    if (value === "0s") return 0;
+    const n = Number.parseFloat(value);
+    return value.endsWith("ms") ? n : n * 1000;
+  });
+  expect(ms).toBeLessThan(1);
+  await saveShot(page, "research-reduced-motion-desktop.png");
 });
 
 test("a dotfile handed from the desk reaches the turn", async ({ page }) => {

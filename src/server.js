@@ -18,7 +18,7 @@ import {
   wireReport,
   withWireIndicator,
 } from "./forward.js";
-import { UPLOAD_FORM, UPLOAD_NAME, parseMultipart, removeUploads, uploadDir } from "./uploads.js";
+import { newNonce, securityHeaders, withNonce } from "./headers.js";
 import { localKnowledge } from "./local.js";
 import { LLM_NAME, configFromEnv, isLoopback, keyState } from "./hermes.js";
 import {
@@ -26,15 +26,40 @@ import {
   BODY_LIMIT,
   BODY_TOO_LONG,
   EMPTY_QUESTION,
+  METHOD_NOT_ALLOWED,
+  NOT_FOUND,
   QUESTION_LIMIT,
   QUESTION_TOO_LONG,
+  RATE_LIMITED,
+  UPSTREAM_REFUSED,
+  createRateLimiter,
   errorBody,
   questionLength,
+  rateLimitsFromEnv,
 } from "./limits.js";
+import { UPLOAD_FORM, UPLOAD_NAME, parseMultipart, removeUploads, uploadDir } from "./uploads.js";
 
 export { BODY_LIMIT, QUESTION_LIMIT };
 
-const PAGE = withWireIndicator(readFileSync(fileURLToPath(new URL("../public/research.html", import.meta.url))));
+export const BIND_HOST = "127.0.0.1";
+export const DEFAULT_PORT = 8787;
+
+const PAGE = withWireIndicator(readFileSync(fileURLToPath(new URL("../public/research.html", import.meta.url)))).toString("utf8");
+
+const ALLOW = Object.freeze({
+  "/favicon.ico": "GET",
+  "/health": "GET",
+  "/": "GET",
+  "/research": "GET",
+  "/research/": "GET",
+  "/one": "GET",
+  "/one/": "GET",
+  "/research/wire": "GET",
+  "/research/hermes": "GET",
+  "/research/history": "GET",
+  "/research/sources": "GET",
+  "/research/ask": "POST",
+});
 
 export function researchOrigin(raw) {
   if (!raw || !String(raw).trim()) return null;
@@ -74,6 +99,27 @@ export function sessionToken(value) {
   return match ? match[1] : null;
 }
 
+export function sessionCookie(id) {
+  return `research_session=${id}; Path=/; HttpOnly; Secure; SameSite=Strict`;
+}
+
+export function listenTarget(options = {}, env = process.env) {
+  const raw = options.port != null && options.port !== "" ? options.port : env.PORT;
+  const port = raw == null || raw === "" ? DEFAULT_PORT : Number(raw);
+  return { host: BIND_HOST, port };
+}
+
+function isMultipart(req) {
+  return /^multipart\/form-data\b/i.test(String(req.headers["content-type"] || ""));
+}
+
+function declaredLength(req) {
+  const raw = req.headers["content-length"];
+  if (raw == null || raw === "") return null;
+  if (!/^\d+$/.test(String(raw))) return Number.NaN;
+  return Number(raw);
+}
+
 function readBody(req, limit = BODY_LIMIT) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -99,19 +145,49 @@ function readBody(req, limit = BODY_LIMIT) {
   });
 }
 
-function send(res, status, type, body) {
+function send(res, status, type, body, nonce = newNonce(), extra) {
   const payload = Buffer.isBuffer(body) ? body : Buffer.from(body);
   res.writeHead(status, {
+    ...securityHeaders(nonce),
     "Content-Type": type,
     "Content-Length": payload.length,
-    "Cache-Control": "no-store",
-    "X-Content-Type-Options": "nosniff",
+    ...extra,
   });
   res.end(payload);
 }
 
-function json(res, status, value) {
-  send(res, status, "application/json; charset=utf-8", JSON.stringify(value));
+function json(res, status, value, extra) {
+  send(res, status, "application/json; charset=utf-8", JSON.stringify(value), newNonce(), extra);
+}
+
+function sendEmpty(res, status, extra) {
+  res.writeHead(status, { ...securityHeaders(newNonce()), ...extra });
+  res.end();
+}
+
+function isErrorDocument(parsed) {
+  return Boolean(parsed && parsed.schema === "galion-research/1" && parsed.status === "Error" && Array.isArray(parsed.citations));
+}
+
+function sendProxied(res, proxied) {
+  let parsed = null;
+  if (proxied.text) {
+    try {
+      parsed = JSON.parse(proxied.text);
+    } catch {
+      parsed = null;
+    }
+  }
+  if (proxied.status >= 200 && proxied.status < 300) {
+    send(res, proxied.status, "application/json; charset=utf-8", proxied.text);
+    return;
+  }
+  if (isErrorDocument(parsed)) {
+    json(res, proxied.status, parsed);
+    return;
+  }
+  const status = proxied.status >= 400 && proxied.status <= 599 ? proxied.status : 502;
+  json(res, status, errorBody("upstream", UPSTREAM_REFUSED));
 }
 
 export function createApp(env = process.env) {
@@ -121,6 +197,7 @@ export function createApp(env = process.env) {
   const one = wire.openmind.origin
     ? `${wire.openmind.origin}/one`
     : oneTarget(env.GALION_ONE_URL || "https://galion.app/one");
+  const limiter = createRateLimiter(rateLimitsFromEnv(env));
 
   async function fromUpstream(path, init) {
     if (!wire.voice.forward) return null;
@@ -140,30 +217,49 @@ export function createApp(env = process.env) {
     return acceptStatus(text);
   }
 
-  function sessionIdFor(req, res) {
-    const fromCookie = sessionToken(req.headers.cookie);
-    const fromHeader = sessionToken(req.headers["x-research-session"]);
-    const id = fromCookie || fromHeader || newSessionId();
-    if (!fromCookie) {
-      res.setHeader("Set-Cookie", `research_session=${id}; HttpOnly; SameSite=Strict; Path=/`);
-    }
-    return id;
-  }
-
   return async function handle(req, res) {
     const url = new URL(req.url || "/", "http://127.0.0.1");
     const path = url.pathname;
     const method = req.method || "GET";
-    const sessionId = sessionIdFor(req, res);
+    const fromCookie = sessionToken(req.headers.cookie);
+    const fromHeader = sessionToken(req.headers["x-research-session"]);
+    const presented = fromCookie || fromHeader;
+    const multipart = method === "POST" && path === "/research/ask" && isMultipart(req);
+
+    function fail(status, code, reply, extra) {
+      json(res, status, errorBody(code, reply), extra);
+      req.resume();
+    }
+
+    const declared = declaredLength(req);
+    if (!multipart && (Number.isNaN(declared) || (declared != null && declared > BODY_LIMIT))) {
+      fail(413, "too-large", BODY_TOO_LONG);
+      return;
+    }
+
+    const kind = method === "POST" && path === "/research/ask" ? "ask" : "request";
+    const gate = limiter.hit(presented || "anon", kind);
+    if (!gate.ok) {
+      fail(429, "rate", RATE_LIMITED, { "Retry-After": String(gate.retryAfter) });
+      return;
+    }
+
+    const sessionId = presented || newSessionId();
+    if (!fromCookie) res.setHeader("Set-Cookie", sessionCookie(sessionId));
+
+    const allowed = ALLOW[path];
+    if (allowed && method !== allowed) {
+      fail(405, "method", METHOD_NOT_ALLOWED, { Allow: allowed });
+      return;
+    }
 
     if (method === "GET" && path === "/favicon.ico") {
-      res.writeHead(204, { "Cache-Control": "no-store" });
-      res.end();
+      sendEmpty(res, 204);
       return;
     }
 
     if (method === "GET" && path === "/health") {
-      json(res, 200, { ok: true, service: "galion-research", bind: "127.0.0.1" });
+      json(res, 200, { ok: true, service: "galion-research", bind: BIND_HOST });
       return;
     }
 
@@ -173,13 +269,13 @@ export function createApp(env = process.env) {
     }
 
     if (method === "GET" && (path === "/" || path === "/research" || path === "/research/")) {
-      send(res, 200, "text/html; charset=utf-8", PAGE);
+      const nonce = newNonce();
+      send(res, 200, "text/html; charset=utf-8", withNonce(PAGE, nonce), nonce);
       return;
     }
 
     if (method === "GET" && (path === "/one" || path === "/one/")) {
-      res.writeHead(302, { Location: one, "Cache-Control": "no-store" });
-      res.end();
+      sendEmpty(res, 302, { Location: one });
       return;
     }
 
@@ -216,7 +312,7 @@ export function createApp(env = process.env) {
       return;
     }
 
-    if (method === "POST" && path === "/research/ask" && /^multipart\/form-data\b/i.test(String(req.headers["content-type"] || ""))) {
+    if (multipart) {
       const dir = uploadDir(env);
       let parsed;
       try {
@@ -260,19 +356,12 @@ export function createApp(env = process.env) {
     }
 
     if (method === "POST" && path === "/research/ask") {
-      const declared = Number(req.headers["content-length"] || "");
-      if (Number.isFinite(declared) && declared > BODY_LIMIT) {
-        json(res, 413, errorBody("too-large", BODY_TOO_LONG));
-        req.resume();
-        return;
-      }
       let raw = "";
       try {
         raw = await readBody(req);
       } catch (err) {
         const tooLarge = err && err.code === 413;
-        json(res, tooLarge ? 413 : 400, errorBody(tooLarge ? "too-large" : "bad-request", tooLarge ? BODY_TOO_LONG : BAD_JSON));
-        req.resume();
+        fail(tooLarge ? 413 : 400, tooLarge ? "too-large" : "bad-request", tooLarge ? BODY_TOO_LONG : BAD_JSON);
         return;
       }
       let question = "";
@@ -280,15 +369,15 @@ export function createApp(env = process.env) {
         const parsed = JSON.parse(raw);
         question = typeof parsed.question === "string" ? parsed.question.trim() : "";
       } catch {
-        json(res, 400, errorBody("bad-json", BAD_JSON));
+        fail(400, "bad-json", BAD_JSON);
         return;
       }
       if (!question) {
-        json(res, 400, errorBody("empty", EMPTY_QUESTION));
+        fail(400, "empty", EMPTY_QUESTION);
         return;
       }
       if (questionLength(question) > QUESTION_LIMIT) {
-        json(res, 413, errorBody("too-large", QUESTION_TOO_LONG));
+        fail(413, "too-large", QUESTION_TOO_LONG);
         return;
       }
       const proxied = await fromUpstream("/research/ask", {
@@ -297,7 +386,7 @@ export function createApp(env = process.env) {
         body: JSON.stringify({ question }),
       });
       if (proxied && proxied.state === "http" && proxied.status === 400) {
-        send(res, 400, "text/plain; charset=utf-8", proxied.text);
+        sendProxied(res, proxied);
         return;
       }
       if (proxied && proxied.state === "http" && proxied.status >= 200 && proxied.status < 300) {
@@ -331,17 +420,21 @@ export function createApp(env = process.env) {
       return;
     }
 
-    send(res, 404, "text/plain; charset=utf-8", "not found");
+    fail(404, "not-found", NOT_FOUND);
   };
 }
 
 export function start(options = {}) {
   const env = options.env || process.env;
   const server = http.createServer(createApp(env));
-  const port = options.port ?? Number(env.PORT || 8787);
-  const host = "127.0.0.1";
-  return new Promise((resolve) => {
-    server.listen(port, host, () => resolve(server));
+  const { host, port } = listenTarget(options, env);
+  return new Promise((resolve, reject) => {
+    const onError = (err) => reject(err);
+    server.once("error", onError);
+    server.listen(port, host, () => {
+      server.off("error", onError);
+      resolve(server);
+    });
   });
 }
 
@@ -349,6 +442,6 @@ const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.arg
 if (isMain) {
   start().then((server) => {
     const address = server.address();
-    console.log(`Galion Research http://127.0.0.1:${address.port}/research`);
+    console.log(`Galion Research http://${address.address}:${address.port}/research`);
   });
 }
