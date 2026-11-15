@@ -39,7 +39,7 @@ Sandbox:
 
 `User=galion` must already exist. This kit does not create the account. Node on the host is `/usr/bin/node`, version 22 or newer, the range in `package.json`.
 
-`IPAddressAllow=localhost` keeps the desk and Hermes (`127.0.0.1:8642`) on the machine. A public `GALION_RESEARCH_URL` does not connect under that policy. The desk then uses Hermes on loopback, then local knowledge. Widening the address policy is a human edit of the unit.
+`IPAddressAllow=localhost` keeps the desk and Hermes (`127.0.0.1:8642`) on the machine. A `GALION_RESEARCH_URL` that is not loopback `http` is refused in the process and is not dialed. The ask then uses Hermes on loopback, then local knowledge, with an empty citation list. Widening the address policy is a human edit of the unit.
 
 The unit does not set a syscall filter, and it does not set `MemoryDenyWriteExecute`. This tree has not run a syscall filter against Node 22, and V8 maps pages it both writes and executes.
 
@@ -50,6 +50,8 @@ The unit does not set a syscall filter, and it does not set `MemoryDenyWriteExec
 ## Health
 
 `GET /health` returns `200` and `{"ok":true,"service":"galion-research","bind":"127.0.0.1"}`. It does not call Hermes, the research origin, or include the key.
+
+`GET /research/wire` is the desk indicator. It dials only the loopback upstreams from [docs/FORWARD.md](FORWARD.md). It does not include the key. `GET /health` does not call it.
 
 ```sh
 node scripts/check-health.js
