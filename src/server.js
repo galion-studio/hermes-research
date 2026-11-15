@@ -18,6 +18,7 @@ import {
   wireReport,
   withWireIndicator,
 } from "./forward.js";
+import { UPLOAD_FORM, UPLOAD_NAME, parseMultipart, removeUploads, uploadDir } from "./uploads.js";
 import { localKnowledge } from "./local.js";
 import { LLM_NAME, configFromEnv, isLoopback, keyState } from "./hermes.js";
 import {
@@ -212,6 +213,49 @@ export function createApp(env = process.env) {
 
     if (method === "GET" && path === "/research/sources") {
       json(res, 200, desk.sourcesBody(sessionId));
+      return;
+    }
+
+    if (method === "POST" && path === "/research/ask" && /^multipart\/form-data\b/i.test(String(req.headers["content-type"] || ""))) {
+      const dir = uploadDir(env);
+      let parsed;
+      try {
+        parsed = await parseMultipart(req, req.headers["content-type"], dir);
+      } catch (err) {
+        const tooLarge = err && err.code === 413;
+        const reply = err && err.reason === "name" ? UPLOAD_NAME : tooLarge ? QUESTION_TOO_LONG : UPLOAD_FORM;
+        json(res, tooLarge ? 413 : 400, errorBody(tooLarge ? "too-large" : err && err.reason === "name" ? "name" : "bad-request", reply));
+        return;
+      }
+      const question = String(parsed.question || "").trim();
+      if (!question || questionLength(question) > QUESTION_LIMIT) {
+        await removeUploads(parsed.files, dir);
+        const tooLarge = questionLength(question) > QUESTION_LIMIT;
+        json(res, tooLarge ? 413 : 400, errorBody(tooLarge ? "too-large" : "empty", tooLarge ? QUESTION_TOO_LONG : EMPTY_QUESTION));
+        return;
+      }
+      const body = await desk.ask(question, sessionId, parsed.files);
+      if (hermes.key && JSON.stringify(body).includes(hermes.key)) {
+        await removeUploads(parsed.files, dir);
+        const local = localKnowledge("");
+        json(res, 200, {
+          schema: "galion-research/1",
+          app: "hermes",
+          model: hermes.model || LLM_NAME,
+          status: "Offline",
+          question: "",
+          reply: local.reply,
+          citations: [],
+          found: [],
+          inferred: [],
+          unknown: local.unknown,
+          sources: [{ label: "Local", text: "What is already known stays marked local." }],
+          helpers: HELPERS_OFFLINE,
+          key: keyState(hermes.key),
+        });
+        return;
+      }
+      json(res, 200, body);
       return;
     }
 
