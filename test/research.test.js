@@ -297,7 +297,11 @@ describe("server", () => {
       assert.equal(healthBody.bind, "127.0.0.1");
       assert.equal(JSON.stringify(healthBody).includes(KEY), false);
       const healthPost = await fetch(`${base}/health`, { method: "POST" });
-      assert.equal(healthPost.status, 404);
+      assert.equal(healthPost.status, 405);
+      const healthPostBody = await healthPost.json();
+      assert.equal(healthPostBody.status, "Error");
+      assert.equal(healthPostBody.error, "method");
+      assert.deepEqual(healthPostBody.citations, []);
     });
   });
 
