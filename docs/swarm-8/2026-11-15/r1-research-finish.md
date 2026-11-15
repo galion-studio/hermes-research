@@ -74,9 +74,24 @@ No failure repeated between the two green Playwright runs. I did not run a longe
 
 CI is recorded below after the push. This section is updated only with runs I actually saw.
 
+## What was read before the last edit
+
+The 15 Nov 2026 GitHub survey, then the canonical files it names for this desk: `galion-operating-system` `LICENSE`, `docs/brand/BRANDING-V2.md`, `docs/voice-profile/README.md`, and `site/README.md`; `obsidian-open-mind` `docs/SOURCE-OF-TRUTH.md` and `docs/bind-defaults.md`; and, in this repo, `LICENSE`, `README.md`, `docs/DEPLOY.md`, `src/cues.js`. The desk on `main` already is the app: loopback port 8787, Found / Inferred / Unknown, 432 Hz and Silence, the session cookie, Offline with empty citations, and the dry-run deploy kit. This pass updates that desk. It does not add a second app, a second deploy guide, or licence wording.
+
+`docs/brand/BRANDING-V2.md` section 10 still names `Copyright (c) 3000 Galion / galion-studio` for a signed document line. The owner instruction for this repository's `LICENSE` is the operating-system file, whose MIT line is `Copyright (c) 2026 Galion Labs`. The file was left as that copy.
+
 ## CI
 
-Pending the push of both branches.
+Seen on GitHub Actions after the push, all `conclusion: success`, jobs `test` and `playwright` both success on the pull-request runs:
+
+| Run | Event | Branch | Head | Result |
+| --- | --- | --- | --- | --- |
+| [43722446090](https://github.com/galion-studio/hermes-research/actions/runs/43722446090) | pull_request | `tidy/galion-hygiene-20261114` | `98589de` | success |
+| [43722441674](https://github.com/galion-studio/hermes-research/actions/runs/43722441674) | push | `tidy/galion-hygiene-20261114` | `98589de` | success |
+| [43722466996](https://github.com/galion-studio/hermes-research/actions/runs/43722466996) | pull_request | `cursor/research-desk-checks-a951` | `8308ab9` | success |
+| [43722442846](https://github.com/galion-studio/hermes-research/actions/runs/43722442846) | push | `cursor/research-desk-checks-a951` | `8308ab9` | success |
+
+Recorded 2026-11-15T15:08:00+01:00 (Europe/Zagreb). A later commit that only fills this section starts its own run.
 
 ## Decisions for Maciej
 
