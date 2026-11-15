@@ -184,6 +184,12 @@ test("phone keeps the field, the disc, and the file plus", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Inferred" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Unknown" })).toBeVisible();
   await page.screenshot({ path: join(shots, "research-desk-phone.png"), fullPage: true });
+  const phoneOpen = await seriousViolations(page);
+  expect(phoneOpen).toEqual([]);
+  await page.getByRole("button", { name: "Hide interface" }).click();
+  await expect(page.locator("#work")).toBeHidden();
+  const phoneBare = await seriousViolations(page);
+  expect(phoneBare).toEqual([]);
 });
 
 test("Silence keeps the 432 Hz cues quiet", async ({ page }) => {
@@ -320,11 +326,89 @@ test("a local question leaves the citation list empty", async ({ page }) => {
   await page.locator("#prompt").fill("Who are you?");
   await page.locator("#prompt").press("Enter");
   await expect(page.locator("#reading-body")).toContainText("Galion Research. What are we looking into?");
+  await expect(page.locator("#reading-body")).toContainText("Offline");
+  await expect(page.locator("body")).toHaveAttribute("data-state", "offline");
+  await expect(page.locator("#hermes-status")).toContainText("Offline");
+  await expect(page.locator("#error")).toBeHidden();
   await expect(page.locator("#unknown-list li")).toHaveCount(1);
   await expect(page.locator("#found-list li")).toHaveCount(0);
+  await expect(page.locator("#local-list li")).toHaveCount(1);
   await expect(page.locator("#citation-empty")).toBeVisible();
+  await expect(page.locator("#citation-list li")).toHaveCount(0);
   await expect(page.locator("#helpers")).toContainText("Local knowledge carries the question.");
   await page.screenshot({ path: join(shots, "research-answer-desktop.png"), fullPage: true });
+});
+
+test("an empty question stays an error", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/research");
+  await page.getByRole("button", { name: "Show interface" }).click();
+  await expect(page.locator("#hermes-status")).toContainText("Offline");
+  await page.locator("#prompt").press("Enter");
+  await expect(page.locator("#error")).toHaveText("The question is empty.");
+  await expect(page.locator("body")).toHaveAttribute("data-state", "error");
+  await expect(page.locator("#hermes-status")).toContainText("Error");
+  await expect(page.locator("#hermes-status")).not.toContainText("Offline");
+  await expect(page.locator("#citation-list li")).toHaveCount(0);
+  await expect(page.locator("#found-list li")).toHaveCount(0);
+});
+
+test("a late status read does not relabel an empty question", async ({ page }) => {
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/research/hermes", async (route) => {
+    await gate;
+    await route.continue();
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/research");
+  await page.getByRole("button", { name: "Show interface" }).click();
+  await page.locator("#prompt").press("Enter");
+  await expect(page.locator("#hermes-status")).toContainText("Error");
+  release();
+  await page.waitForResponse("**/research/hermes");
+  await expect(page.locator("body")).toHaveAttribute("data-state", "error");
+  await expect(page.locator("#hermes-status")).toHaveText("Hermes · Error");
+});
+
+test("a late history read does not wipe an offline answer", async ({ page }) => {
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  let held = false;
+  await page.route("**/research/history", async (route) => {
+    if (!held && route.request().method() === "GET") {
+      held = true;
+      await gate;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ schema: "galion-research/1", items: [], sources: [] }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/research");
+  await page.getByRole("button", { name: "Show interface" }).click();
+  await page.locator("#prompt").fill("Who are you?");
+  await page.locator("#prompt").press("Enter");
+  await expect(page.locator("body")).toHaveAttribute("data-state", "offline");
+  await expect(page.locator("#local-list li")).toHaveCount(1);
+  const stale = page.waitForResponse(
+    (res) => res.url().includes("/research/history") && res.request().method() === "GET",
+  );
+  release();
+  await stale;
+  await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 50)));
+  await expect(page.locator("body")).toHaveAttribute("data-state", "offline");
+  await expect(page.locator("#reading-body")).toContainText("Offline");
+  await expect(page.locator("#local-list li")).toHaveCount(1);
+  await expect(page.locator("#citation-list li")).toHaveCount(0);
 });
 
 test("a dotfile handed from the desk reaches the turn", async ({ page }) => {
