@@ -326,3 +326,21 @@ test("a local question leaves the citation list empty", async ({ page }) => {
   await expect(page.locator("#helpers")).toContainText("Local knowledge carries the question.");
   await page.screenshot({ path: join(shots, "research-answer-desktop.png"), fullPage: true });
 });
+
+test("a dotfile handed from the desk reaches the turn", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/research");
+  await page.getByRole("button", { name: "Show interface" }).click();
+  await page.locator("#files").setInputFiles({
+    name: ".notes",
+    mimeType: "application/octet-stream",
+    buffer: Buffer.from("dotfile-marker\n"),
+  });
+  await expect(page.locator("#file-names")).toHaveText(".notes");
+  await page.locator("#prompt").fill("What is in the file?");
+  await page.locator("#prompt").press("Enter");
+  await expect(page.locator("#reading-body")).toContainText(".notes");
+  await expect(page.locator("#reading-body")).toContainText("dotfile-marker");
+  await expect(page.locator("#reading-list")).toContainText(".notes");
+  await expect(page.locator("#citation-list li")).toHaveCount(0);
+});
