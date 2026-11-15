@@ -81,10 +81,10 @@ Node 22, no packages. `npm run build` is a syntax check of the sources, the heal
 Desktop and phone screenshots, plus the accessibility checks:
 
 ```sh
-cd e2e && npm ci && npx playwright test
+cd e2e && npm ci && npx playwright install chromium && npx playwright test
 ```
 
-GitHub Actions (`.github/workflows/ci.yml`) runs `npm run build`, `npm test`, and the Playwright suite on push and on pull request. This draft does not deploy.
+GitHub Actions (`.github/workflows/ci.yml`) runs `npm run build`, `npm test`, and the Playwright suite on push and on pull request. The workflow installs Chromium with its system libraries before the suite. It does not deploy.
 
 ## Deploy kit
 

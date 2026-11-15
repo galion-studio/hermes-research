@@ -430,13 +430,17 @@ function tone(id){
     }));
     document.getElementById("history-empty").hidden=(items||[]).length>0;
   }
+  // Once a question is committed, these first reads must not relabel or wipe it.
+  var turnStarted=false;
   fetch("/research/hermes",{cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(j){
+    if(turnStarted) return;
     if(!j){ hermesStatus("Hermes · Offline"); return; }
     hermesStatus("Hermes · "+(j.status||"Idle"));
-  }).catch(function(){ hermesStatus("Hermes · Offline"); });
+  }).catch(function(){ if(!turnStarted) hermesStatus("Hermes · Offline"); });
   fetch("/research/history",{cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(j){
-    if(j&&Array.isArray(j.items)) paintHistory(j.items);
-    if(j&&Array.isArray(j.sources)) paintSources(j.sources);
+    if(turnStarted||!j) return;
+    if(Array.isArray(j.items)) paintHistory(j.items);
+    if(Array.isArray(j.sources)) paintSources(j.sources);
   }).catch(function(){});
   function openPicker(ev){ ev.preventDefault(); files.click(); }
   document.getElementById("add-file").addEventListener("click", openPicker);
@@ -470,6 +474,7 @@ function tone(id){
     setSilence(!silenceOn());
   });
   function commitQuestion(){
+    turnStarted=true;
     var q=prompt.value.replace(/\s+/g," ").trim();
     if(!q){ showError("The question is empty."); return; }
     if(Array.from(q).length>QUESTION_LIMIT){ showError("The question is longer than 2000 characters."); return; }
