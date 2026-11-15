@@ -41,8 +41,9 @@ Uploads behaviour past that (how much of a huge file the turn reads, how long a 
 1. Owner merges #1, then #6. This swarm does not.
 2. Swarm 9, one at a time, after CI is green and the review is clear: this plan, then `Swarm 9 research/uploads`, then the lane pull requests that are not already merged. Update each next branch from `main` before its CI re-run.
 3. `Swarm 9 research/gitignore-restore` is not in that list. It stays a draft.
-4. [#7](https://github.com/galion-studio/hermes-research/pull/7) does not carry #6. Head `f1145eb7f4df1ae8c01369006913f164f644494b` refuses a non-loopback research origin. Local `npm test` on that head: 36 pass, 0 fail, 0 skipped. Merge it when the CI on that head is green. It does not wait on #6.
-5. [#8](https://github.com/galion-studio/hermes-research/pull/8) (`Swarm 9 research/ux-ui`) and [#9](https://github.com/galion-studio/hermes-research/pull/9) (`Swarm 9 research/desk-hardening`) both contain #6 commits `8308ab9` and `636190a`. Do not merge them until the owner has merged #6 onto `main`. Then rebase each branch onto `main` and merge once that new head is green. No force-push: if the rebase cannot be published without one, merge `main` into the branch instead.
+4. [#7](https://github.com/galion-studio/hermes-research/pull/7) is on `main` as merge `e1d5fb0e3567a2fcd73d7af93ebacc5d9e441827`. It does not carry #6.
+5. [#12](https://github.com/galion-studio/hermes-research/pull/12) uploads is on `main` as merge `4d87709c7be5647e5822d5b3d8c5879f254dd1a7`. Head `ddebcfd` had four successful checks and does not carry #6. Local `npm test` after merging wire-one in: 40 pass, 0 fail.
+6. [#8](https://github.com/galion-studio/hermes-research/pull/8) (`Swarm 9 research/ux-ui`, head `6e199dc`) and [#9](https://github.com/galion-studio/hermes-research/pull/9) (`Swarm 9 research/desk-hardening`, head `ec37040`) both contain #6 commits `8308ab9` and `636190a`. #6 is still open. Do not merge them until the owner has merged #6 onto `main`. #9 is already conflicting with `main`. Then rebase each branch onto `main` and merge once that new head is green. No force-push: if the rebase cannot be published without one, merge `main` into the branch instead.
 
 ## Where draft #6 already touches files
 
