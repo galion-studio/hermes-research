@@ -38,12 +38,14 @@ Uploads behaviour past that (how much of a huge file the turn reads, how long a 
 
 ## Merge order
 
-1. Owner merges #1, then #6. This swarm does not.
-2. Swarm 9, one at a time, after CI is green and the review is clear: this plan, then `Swarm 9 research/uploads`, then the lane pull requests that are not already merged. Update each next branch from `main` before its CI re-run.
-3. `Swarm 9 research/gitignore-restore` is not in that list. It stays a draft.
+1. [#1](https://github.com/galion-studio/hermes-research/pull/1) stays for the owner. This swarm does not edit or merge it.
+2. Swarm 9 merges one at a time, after CI is green and the review is clear. Update each next branch from `main` before its CI re-run.
+3. `Swarm 9 research/gitignore-restore` stays a draft.
 4. [#7](https://github.com/galion-studio/hermes-research/pull/7) is on `main` as merge `e1d5fb0e3567a2fcd73d7af93ebacc5d9e441827`. It does not carry #6.
 5. [#12](https://github.com/galion-studio/hermes-research/pull/12) uploads is on `main` as merge `4d87709c7be5647e5822d5b3d8c5879f254dd1a7`. Head `ddebcfd` had four successful checks and does not carry #6. Local `npm test` after merging wire-one in: 40 pass, 0 fail.
-6. [#8](https://github.com/galion-studio/hermes-research/pull/8) (`Swarm 9 research/ux-ui`, head `6e199dc`) and [#9](https://github.com/galion-studio/hermes-research/pull/9) (`Swarm 9 research/desk-hardening`, head `ec37040`) both contain #6 commits `8308ab9` and `636190a`. #6 is still open. Do not merge them until the owner has merged #6 onto `main`. #9 is already conflicting with `main`. Then rebase each branch onto `main` and merge once that new head is green. No force-push: if the rebase cannot be published without one, merge `main` into the branch instead.
+6. [#6](https://github.com/galion-studio/hermes-research/pull/6) is on `main` as merge `63040cabd3166ffb2017131f1859039f78382e19`, after Maciej approved it. Head `eaf749d` had four successful checks.
+7. [#8](https://github.com/galion-studio/hermes-research/pull/8) ux-ui is on `main` as merge `af7b9c8807aaeb5ee4526d5b98edf86fd3af8362`. Head `514c342` had four successful checks. Local `npm test`: 40 pass, 0 fail.
+8. [#9](https://github.com/galion-studio/hermes-research/pull/9) desk-hardening is on `main` as merge `864c270b362e23c9df31dab47fc0380373c6fae1`. Head `6bdce7a` had four successful checks. Local `npm test`: 54 pass, 0 fail.
 
 ## Where draft #6 already touches files
 
