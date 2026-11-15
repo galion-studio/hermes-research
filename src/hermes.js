@@ -9,6 +9,8 @@ export const REFUSED = "I'll stay on what you said.";
 export const LLM_NAME = "hermes-agent";
 export const DEFAULT_URL = "http://127.0.0.1:8642/v1/chat/completions";
 export const DEFAULT_TIMEOUT_MS = 3_000;
+// The live voice desk gives Hermes 85 s. Stay under Cloudflare's 100 s origin limit.
+export const MAX_TIMEOUT_MS = 95_000;
 
 export const RESEARCH_PROMPT =
   'You are Galion Research, the research app on Hermes, a voice of Galion One. Answer the question first, then the limit. Separate found, inferred, and unknown. Cite only a source that was handed to you, one per line, starting with [1]. If you have no source, say "I don\'t have a source for that." Do not invent a paper, a URL, a date, or a measurement. English only.';
@@ -273,6 +275,6 @@ export function configFromEnv(env = process.env) {
     url: url || DEFAULT_URL,
     model: String(env.GALION_LLM_MODEL || LLM_NAME).trim().slice(0, 64) || LLM_NAME,
     key: String(env.GALION_LLM_KEY || "").trim(),
-    timeoutMs: Number.isFinite(timeout) ? Math.min(30_000, Math.max(50, timeout)) : DEFAULT_TIMEOUT_MS,
+    timeoutMs: Number.isFinite(timeout) ? Math.min(MAX_TIMEOUT_MS, Math.max(50, timeout)) : DEFAULT_TIMEOUT_MS,
   };
 }

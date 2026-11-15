@@ -26,6 +26,8 @@ describe("hermes unit", () => {
     assert.equal(parseLoopbackChatUrl("http://example.invalid:8642/v1/chat/completions"), null);
     assert.equal(configFromEnv({ GALION_LLM: "mock" }).attached, false);
     assert.equal(configFromEnv({ GALION_LLM: "echo" }).attached, false);
+    assert.equal(configFromEnv({ GALION_LLM_TIMEOUT_MS: "85000" }).timeoutMs, 85_000);
+    assert.equal(configFromEnv({ GALION_LLM_TIMEOUT_MS: "600000" }).timeoutMs, 95_000);
     const started = Date.now();
     const turn = await researchTurn(
       { url: "http://example.invalid:9/v1/chat/completions", model: "hermes-agent", timeoutMs: 50 },

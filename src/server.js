@@ -199,10 +199,10 @@ export function createApp(env = process.env) {
     : oneTarget(env.GALION_ONE_URL || "https://galion.app/one");
   const limiter = createRateLimiter(rateLimitsFromEnv(env));
 
-  async function fromUpstream(path, init) {
+  async function fromUpstream(path, init, timeoutMs = wire.timeoutMs) {
     if (!wire.voice.forward) return null;
     try {
-      const result = await exchange(wire.voice.forward, path, init, wire.timeoutMs);
+      const result = await exchange(wire.voice.forward, path, init, timeoutMs);
       if (result.overflow) return { state: "malformed" };
       if (leaksKey(result.text, hermes.key)) return { state: "malformed" };
       return { state: "http", status: result.status, text: result.text };
@@ -384,7 +384,7 @@ export function createApp(env = process.env) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question }),
-      });
+      }, wire.askTimeoutMs);
       if (proxied && proxied.state === "http" && proxied.status === 400) {
         sendProxied(res, proxied);
         return;

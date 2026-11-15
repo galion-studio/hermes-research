@@ -16,7 +16,8 @@ This desk does not start either process, and it does not bind 18181.
 | `GALION_OPENMIND_URL` | openmind-desktop | Loopback origin only. Example: `http://127.0.0.1:18181`. |
 | `GALION_VOICE_URL` | galion-one-voice web surface | Loopback origin only. When set, this is the voice upstream. |
 | `GALION_RESEARCH_URL` | older research origin | Used only when `GALION_VOICE_URL` is unset. The same loopback `http` rule applies. `https` and any other host are refused and are not dialed. |
-| `GALION_UPSTREAM_TIMEOUT_MS` | both | Default 4000. Clamped from 50 to 4000. |
+| `GALION_UPSTREAM_TIMEOUT_MS` | both | Default 4000. Clamped from 50 to 4000. Health probes and GET forwards. |
+| `GALION_ASK_TIMEOUT_MS` | voice | Default 90000. Clamped from 50 to 95000. Only the forwarded `POST /research/ask`, so a Hermes answer that takes up to the voice desk's 85 s is not cut off. |
 
 `GET /one` redirects to `{GALION_OPENMIND_URL}/one` when that value is an accepted loopback origin. Otherwise it stays `GALION_ONE_URL`, default `https://galion.app/one`.
 
