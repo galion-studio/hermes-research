@@ -4,7 +4,7 @@ Orchestrator record for Galion Research (`hermes-research`). Times are Europe/Za
 
 Base is `main` at `ed3ce9993f58ec655af4f23c2438eb83cd7ea844` unless a lane note says a later merge. Drafts [#1](https://github.com/galion-studio/hermes-research/pull/1) and [#6](https://github.com/galion-studio/hermes-research/pull/6) are not Swarm 9. Do not edit those branches, do not push to them, and do not merge them. The owner said on 2026-11-15 at 15:29 that both are green and ready, so they stay for the owner.
 
-Checked open pull requests at 15:32. The only pre-swarm drafts are #1 and #6. Neither is blocked or failing, so none were taken. Swarm 9 pull request [#7](https://github.com/galion-studio/hermes-research/pull/7) (`Swarm 9 research/wire-one`, head `a0540541619120d0fb11e7542e31a0aba76a7a91`) is separate and is reviewed below.
+Checked open pull requests at 15:36. The only pre-swarm drafts are #1 and #6. Neither is blocked or failing, so none were taken. Swarm 9 pull requests: [#7](https://github.com/galion-studio/hermes-research/pull/7) wire-one (no #6 commits), [#8](https://github.com/galion-studio/hermes-research/pull/8) ux-ui and [#9](https://github.com/galion-studio/hermes-research/pull/9) desk-hardening (both contain #6).
 
 ## Design direction (FRXDEL, 2026-11-15 15:25)
 
@@ -41,7 +41,8 @@ Uploads behaviour past that (how much of a huge file the turn reads, how long a 
 1. Owner merges #1, then #6. This swarm does not.
 2. Swarm 9, one at a time, after CI is green and the review is clear: this plan, then `Swarm 9 research/uploads`, then the lane pull requests that are not already merged. Update each next branch from `main` before its CI re-run.
 3. `Swarm 9 research/gitignore-restore` is not in that list. It stays a draft.
-4. [#7](https://github.com/galion-studio/hermes-research/pull/7) is not merged yet. The review on 15:32 holds it until an `https` `GALION_RESEARCH_URL` is no longer dialed. After uploads lands, that branch updates from `main`.
+4. [#7](https://github.com/galion-studio/hermes-research/pull/7) does not carry #6. Head `f1145eb7f4df1ae8c01369006913f164f644494b` refuses a non-loopback research origin. Local `npm test` on that head: 36 pass, 0 fail, 0 skipped. Merge it when the CI on that head is green. It does not wait on #6.
+5. [#8](https://github.com/galion-studio/hermes-research/pull/8) (`Swarm 9 research/ux-ui`) and [#9](https://github.com/galion-studio/hermes-research/pull/9) (`Swarm 9 research/desk-hardening`) both contain #6 commits `8308ab9` and `636190a`. Do not merge them until the owner has merged #6 onto `main`. Then rebase each branch onto `main` and merge once that new head is green. No force-push: if the rebase cannot be published without one, merge `main` into the branch instead.
 
 ## Where draft #6 already touches files
 
@@ -95,7 +96,7 @@ The contract it added:
 - A citation is kept only when the JSON already had `{ "n", "text" }`. Timeout, a down upstream, or a malformed body falls through to local knowledge with an empty citation list.
 - `GET /research/wire` is the indicator. The desk line is injected when the page is served, so `public/research.html` stays free for #6 and for uploads.
 
-Still open on #7: when `GALION_VOICE_URL` is unset, an `https` `GALION_RESEARCH_URL` is still dialed. That dial goes. Loopback http only. Then Hermes, then Offline / Local, citations `[]`.
+`f1145eb` removed the `https` dial. `GALION_RESEARCH_URL` now has to be loopback http, same as `GALION_VOICE_URL`. A refused origin falls through to Hermes, then Offline / Local, with citations `[]`.
 
 | Path | Owned by this lane |
 | --- | --- |
