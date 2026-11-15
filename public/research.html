@@ -110,6 +110,9 @@ textarea::placeholder{color:color-mix(in srgb, var(--ice) 72%, var(--ground))}
 #citation-list{color:color-mix(in srgb, var(--ink) 78%, transparent);font:14px/1.45 system-ui,sans-serif}
 #citation-list .mark{color:var(--amber);margin-right:.4em}
 #helpers{margin:18px 0 0;text-align:center;font:13px/1.4 system-ui,sans-serif;letter-spacing:.04em;color:var(--quiet)}
+#state-line{margin:0 0 18px;text-align:center;font:13px/1.4 system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:color-mix(in srgb, var(--ice) 82%, var(--ink))}
+body:not([data-ui="minimal"]) #state-line{display:none}
+#error{margin:12px 0 0;text-align:center;font:15px/1.45 system-ui,sans-serif;color:var(--ice)}
 #ui-toggle,#silence{width:auto;height:40px;padding:0 14px;border-radius:999px;font:12px/1 system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase}
 #silence[aria-pressed="true"]{color:var(--ground);background:var(--sky);border-color:var(--sky)}
 body[data-ui="minimal"] #rail,
@@ -119,7 +122,9 @@ body[data-ui="minimal"] #commit-hint{display:none}
 body[data-ui="minimal"] .app{display:block}
 body[data-ui="minimal"] .stage{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;width:min(880px,calc(100vw - 80px));margin:0 auto;padding:0;gap:18px}
 body[data-ui="minimal"] .ask{width:100%}
-body[data-ui="minimal"] #helpers{margin:0}
+body[data-ui="minimal"] #helpers,
+body[data-ui="minimal"] #state-line,
+body[data-ui="minimal"] #error{margin:0}
 .sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
 @media (max-width:800px){
   .desk{width:min(1080px,calc(100vw - 32px))}
@@ -148,6 +153,7 @@ body[data-ui="minimal"] #helpers{margin:0}
   </section>
 </aside>
 <main class="stage">
+  <p id="state-line" data-app="hermes">Hermes</p>
   <p class="sr" id="product-line">Galion Research is the Hermes research app, a voice of Galion One. Voice to voice is on.</p>
   <p class="sr" id="research-voice">Galion Research. What are we looking into?</p>
   <p class="sr" id="voice-name">Research · Hermes</p>
@@ -173,6 +179,7 @@ body[data-ui="minimal"] #helpers{margin:0}
     </button>
   </form>
   <p id="helpers" hidden aria-live="polite">Helpers are quiet.</p>
+  <p id="error" role="alert" hidden></p>
   <div class="work" id="work">
     <section class="panel" id="sources" aria-labelledby="sources-label">
       <h2 id="sources-label">Sources</h2>
@@ -298,7 +305,12 @@ function tone(id){
   var files=document.getElementById("files");
   var prompt=document.getElementById("prompt");
   var statusEl=document.getElementById("hermes-status");
-  function hermesStatus(text){ statusEl.textContent=text; }
+  var stateLine=document.getElementById("state-line");
+  var QUESTION_LIMIT=2000;
+  function hermesStatus(text){
+    statusEl.textContent=text;
+    if(stateLine) stateLine.textContent=text;
+  }
   function fillList(ol, rows){
     while(ol.firstChild) ol.removeChild(ol.firstChild);
     rows.forEach(function(row){
@@ -307,28 +319,76 @@ function tone(id){
       ol.appendChild(li);
     });
   }
-  var LOCAL="The research path is not reachable from here. Local. What is already known stays marked local.";
+  var OFFLINE="Offline. The research path is not reachable from here. Local. What is already known stays marked local.";
+  var LOCAL_SOURCE="What is already known stays marked local.";
   var helpers=document.getElementById("helpers");
+  var errorEl=document.getElementById("error");
   function markLocalSources(){
-    fillList(document.getElementById("local-list"), ["Local. What is already known stays marked local."]);
+    fillList(document.getElementById("local-list"), [LOCAL_SOURCE]);
     document.getElementById("source-empty").hidden=true;
   }
-  function carryLocal(q){
-    hermesStatus("Hermes · Local");
+  function clearError(){
+    errorEl.hidden=true;
+    errorEl.textContent="";
+    if(document.body.getAttribute("data-state")==="error") document.body.removeAttribute("data-state");
+  }
+  function showError(message){
+    var text=message||"The question was not sent.";
+    errorEl.hidden=false;
+    errorEl.textContent=text;
+    document.body.setAttribute("data-state","error");
+    hermesStatus("Hermes · Error");
+    helpers.hidden=false;
+    helpers.textContent="Helpers are quiet.";
+    fillList(document.getElementById("arriving-list"), []);
+    document.getElementById("arriving-empty").hidden=false;
+    fillList(document.getElementById("citation-list"), []);
+    document.getElementById("citation-empty").hidden=false;
+    document.getElementById("reading-question").hidden=true;
+    document.getElementById("reading-body").textContent=text;
+    fillPile("found", []);
+    fillPile("inferred", []);
+    fillPile("unknown", []);
+  }
+  function carryOffline(q){
+    clearError();
+    document.body.setAttribute("data-state","offline");
+    hermesStatus("Hermes · Offline");
     helpers.hidden=false;
     helpers.textContent="Helpers are quiet. Local knowledge carries the question.";
     document.getElementById("reading-question").textContent=q;
     document.getElementById("reading-question").hidden=false;
-    document.getElementById("reading-body").textContent=LOCAL;
+    document.getElementById("reading-body").textContent=OFFLINE;
     markLocalSources();
-    fillPile("unknown", [LOCAL]);
-    paintHistory([{status:"Local", question:q}]);
+    fillList(document.getElementById("citation-list"), []);
+    document.getElementById("citation-empty").hidden=false;
+    fillList(document.getElementById("reading-list"), []);
+    document.getElementById("reading-empty").hidden=false;
+    fillList(document.getElementById("arriving-list"), []);
+    document.getElementById("arriving-empty").hidden=false;
+    fillPile("found", []);
+    fillPile("inferred", []);
+    fillPile("unknown", [OFFLINE]);
+    paintHistory([{status:"Offline", question:q}]);
     tone("local");
   }
-  function isLocal(j){
-    return j.status==="Unreachable"||j.status==="Local";
+  function isOffline(j){
+    return j.status==="Offline"||j.status==="Unreachable"||j.status==="Local";
+  }
+  function paintSources(sources){
+    var local=[], reading=[];
+    (sources||[]).forEach(function(s){
+      if(!s||!s.text) return;
+      if(s.label==="Local") local.push(s.text);
+      else if(s.label==="Citation") reading.push((s.n?"["+s.n+"] ":"")+(s.text||""));
+    });
+    fillList(document.getElementById("local-list"), local);
+    fillList(document.getElementById("reading-list"), reading);
+    document.getElementById("source-empty").hidden=local.length>0;
+    document.getElementById("reading-empty").hidden=reading.length>0;
   }
   function showTurn(j){
+    clearError();
     var q=j.question||"";
     var lead=document.getElementById("reading-question");
     lead.textContent=q;
@@ -337,20 +397,24 @@ function tone(id){
     document.getElementById("answer").dataset.set="1";
     var cites=Array.isArray(j.citations)?j.citations:[];
     fillList(document.getElementById("citation-list"), cites.map(function(c){ return "["+c.n+"] "+(c.text||""); }));
-    fillList(document.getElementById("reading-list"), cites.map(function(c){ return c.text||""; }));
     fillList(document.getElementById("arriving-list"), []);
     document.getElementById("citation-empty").hidden=cites.length>0;
-    document.getElementById("reading-empty").hidden=cites.length>0;
     document.getElementById("arriving-empty").hidden=false;
+    if(Array.isArray(j.sources)) paintSources(j.sources);
+    else {
+      fillList(document.getElementById("reading-list"), cites.map(function(c){ return c.text||""; }));
+      document.getElementById("reading-empty").hidden=cites.length>0;
+    }
     fillPile("found", j.found);
     fillPile("inferred", j.inferred);
     fillPile("unknown", j.unknown);
-    var local=isLocal(j);
-    if(local) markLocalSources();
+    var offline=isOffline(j);
+    if(offline && !Array.isArray(j.sources)) markLocalSources();
+    document.body.setAttribute("data-state", offline?"offline":"ready");
     hermesStatus("Hermes · "+(j.status||"Returned"));
     helpers.hidden=false;
-    helpers.textContent=local?"Helpers are quiet. Local knowledge carries the question.":(j.helpers||"Helpers are quiet.");
-    tone(local?"local":"returned");
+    helpers.textContent=offline?"Helpers are quiet. Local knowledge carries the question.":(j.helpers||"Helpers are quiet.");
+    tone(offline?"local":"returned");
   }
   function fillPile(id, rows){
     var list=document.getElementById(id+"-list");
@@ -367,11 +431,12 @@ function tone(id){
     document.getElementById("history-empty").hidden=(items||[]).length>0;
   }
   fetch("/research/hermes",{cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(j){
-    if(!j){ hermesStatus("Hermes · Local"); return; }
+    if(!j){ hermesStatus("Hermes · Offline"); return; }
     hermesStatus("Hermes · "+(j.status||"Idle"));
-  }).catch(function(){ hermesStatus("Hermes · Local"); });
+  }).catch(function(){ hermesStatus("Hermes · Offline"); });
   fetch("/research/history",{cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(j){
     if(j&&Array.isArray(j.items)) paintHistory(j.items);
+    if(j&&Array.isArray(j.sources)) paintSources(j.sources);
   }).catch(function(){});
   function openPicker(ev){ ev.preventDefault(); files.click(); }
   document.getElementById("add-file").addEventListener("click", openPicker);
@@ -406,7 +471,9 @@ function tone(id){
   });
   function commitQuestion(){
     var q=prompt.value.replace(/\s+/g," ").trim();
-    if(!q) return;
+    if(!q){ showError("The question is empty."); return; }
+    if(Array.from(q).length>QUESTION_LIMIT){ showError("The question is longer than 2000 characters."); return; }
+    clearError();
     hermesStatus("Hermes · Running");
     helpers.hidden=false;
     helpers.textContent="Helpers: reading, sources, notebook.";
@@ -415,14 +482,27 @@ function tone(id){
     tone("ask");
     setTimeout(function(){ tone("helper"); }, 180);
     fetch("/research/ask",{method:"POST",cache:"no-store",headers:{"Content-Type":"application/json"},body:JSON.stringify({question:q})})
-      .then(function(r){ return r.ok?r.json():null; })
-      .then(function(j){
-        if(!j){ carryLocal(q); return; }
-        showTurn(j);
+      .then(function(r){
+        return r.text().then(function(text){
+          var data=null;
+          try{ data=JSON.parse(text); }catch(e){ data=null; }
+          return { ok:r.ok, data:data };
+        });
+      })
+      .then(function(res){
+        if(!res.ok || (res.data && res.data.status==="Error")){
+          showError(res.data && res.data.reply ? res.data.reply : "The question was not sent.");
+          return null;
+        }
+        if(!res.data){ carryOffline(q); return null; }
+        showTurn(res.data);
         return fetch("/research/history",{cache:"no-store"}).then(function(r){ return r.ok?r.json():null; });
       })
-      .then(function(h){ if(h&&Array.isArray(h.items)) paintHistory(h.items); })
-      .catch(function(){ carryLocal(q); });
+      .then(function(h){
+        if(h&&Array.isArray(h.items)) paintHistory(h.items);
+        if(h&&Array.isArray(h.sources)) paintSources(h.sources);
+      })
+      .catch(function(){ carryOffline(q); });
   }
   prompt.addEventListener("keydown", function(ev){
     if(ev.key==="Enter"&&!ev.shiftKey){

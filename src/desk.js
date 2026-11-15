@@ -12,10 +12,15 @@ import {
 
 export const HELPER_NAMES = Object.freeze(["reading", "sources", "notebook"]);
 export const HELPERS_QUIET = "Helpers are quiet.";
-export const HELPERS_LOCAL = "Helpers are quiet. Local knowledge carries the question.";
+export const HELPERS_OFFLINE = "Helpers are quiet. Local knowledge carries the question.";
+export const HELPERS_LOCAL = HELPERS_OFFLINE;
 export const HELPERS_RUNNING = `Helpers: ${HELPER_NAMES.join(", ")}.`;
 
 const HISTORY_CAP = 32;
+const SESSION_CAP = 64;
+const SOURCE_CAP = 48;
+
+const LOCAL_SOURCE = "What is already known stays marked local.";
 
 export function notebookPiles(reply) {
   const found = [];
@@ -54,20 +59,22 @@ function scrub(value, key) {
   return String(value).split(key).join("");
 }
 
+function offlineResult(question, key) {
+  const local = localKnowledge(scrub(question, key));
+  return {
+    status: "Offline",
+    reply: local.reply,
+    citations: [],
+    found: [],
+    inferred: [],
+    unknown: local.unknown,
+    helpers: HELPERS_OFFLINE,
+  };
+}
+
 function finish(turn, question, key) {
   const leaked = Boolean(key) && (turn.text.includes(key) || turn.citations.some((cite) => cite.text.includes(key)));
-  if (leaked || turn.text === UNREACHABLE) {
-    const local = localKnowledge(scrub(question, key));
-    return {
-      status: "Local",
-      reply: local.reply,
-      citations: [],
-      found: [],
-      inferred: [],
-      unknown: local.unknown,
-      helpers: HELPERS_LOCAL,
-    };
-  }
+  if (leaked || turn.text === UNREACHABLE) return offlineResult(question, key);
   let status = researchState(turn.text);
   let citations = status === "Returned" ? turn.citations.map((cite) => ({ n: cite.n, text: scrub(cite.text, key) })) : [];
   citations = citations.filter((cite) => cite.text);
@@ -83,23 +90,51 @@ function finish(turn, question, key) {
     found: piles.found,
     inferred: piles.inferred,
     unknown: piles.unknown,
-    helpers: status === "Unreachable" ? HELPERS_LOCAL : HELPERS_QUIET,
+    helpers: status === "Unreachable" ? HELPERS_OFFLINE : HELPERS_QUIET,
   };
 }
 
-export function createDesk(hermes) {
-  const notes = [];
-  let nextId = 0;
-  let status = "Idle";
+export function createDesk(hermes, deps = {}) {
+  const turnFn = deps.researchTurn || researchTurn;
+  const sessions = new Map();
   let chain = Promise.resolve();
 
-  function gatewayStatus() {
-    if (status === "Running") return "Running";
-    if (!hermes.attached) return notes.length ? status : "Local";
-    return status === "Idle" ? "Idle" : status;
+  function open(sessionId) {
+    const id = sessionId || "session";
+    let session = sessions.get(id);
+    if (!session) {
+      session = { notes: [], sources: [], status: "Idle", nextId: 0, at: Date.now() };
+      sessions.set(id, session);
+      evict(id);
+    }
+    session.at = Date.now();
+    return session;
   }
 
-  function statusBody() {
+  function evict(keep) {
+    while (sessions.size > SESSION_CAP) {
+      let oldest = null;
+      let oldestAt = Infinity;
+      for (const [id, session] of sessions) {
+        if (id === keep) continue;
+        if (session.at < oldestAt) {
+          oldest = id;
+          oldestAt = session.at;
+        }
+      }
+      if (!oldest) break;
+      sessions.delete(oldest);
+    }
+  }
+
+  function gatewayStatus(session) {
+    if (session.status === "Running") return "Running";
+    if (!hermes.attached) return session.notes.length ? session.status : "Offline";
+    return session.status === "Idle" ? "Idle" : session.status;
+  }
+
+  function statusBody(sessionId) {
+    const session = open(sessionId);
     return {
       schema: "galion-research/1",
       app: "hermes",
@@ -107,8 +142,8 @@ export function createDesk(hermes) {
       product: "galion-one",
       model: hermes.model || LLM_NAME,
       key: keyState(hermes.key),
-      status: gatewayStatus(),
-      history: notes.length,
+      status: gatewayStatus(session),
+      history: session.notes.length,
       upstream: "none",
     };
   }
@@ -128,19 +163,48 @@ export function createDesk(hermes) {
     };
   }
 
-  function historyBody() {
+  function sourcesOf(session) {
+    return session.sources.map((source) => ({ ...source }));
+  }
+
+  function rememberSources(session, note) {
+    if (note.status === "Offline") {
+      if (!session.sources.some((source) => source.label === "Local")) {
+        session.sources.push({ label: "Local", text: LOCAL_SOURCE, questionId: note.id });
+      }
+    } else if (note.status === "Returned") {
+      for (const cite of note.citations) {
+        if (!cite.text || session.sources.length >= SOURCE_CAP) continue;
+        session.sources.push({ label: "Citation", n: cite.n, text: cite.text, questionId: note.id });
+      }
+    }
+    while (session.sources.length > SOURCE_CAP) session.sources.shift();
+  }
+
+  function historyBody(sessionId) {
+    const session = open(sessionId);
     return {
       schema: "galion-research/1",
       app: "hermes",
-      items: notes
+      items: session.notes
         .slice()
         .reverse()
         .map(noteBody),
+      sources: sourcesOf(session),
     };
   }
 
-  function ask(question) {
-    const job = chain.then(() => run(question));
+  function sourcesBody(sessionId) {
+    const session = open(sessionId);
+    return {
+      schema: "galion-research/1",
+      app: "hermes",
+      sources: sourcesOf(session),
+    };
+  }
+
+  function ask(question, sessionId) {
+    const job = chain.then(() => run(question, sessionId));
     chain = job.then(
       () => {},
       () => {},
@@ -148,38 +212,33 @@ export function createDesk(hermes) {
     return job;
   }
 
-  async function run(question) {
-    status = "Running";
-    nextId += 1;
-    const id = nextId;
+  async function run(question, sessionId) {
+    const session = open(sessionId);
+    session.status = "Running";
+    session.nextId += 1;
+    const id = session.nextId;
     const clean = scrub(question, hermes.key);
     let done;
     if (!hermes.attached) {
-      const local = localKnowledge(clean);
-      done = {
-        status: "Local",
-        reply: local.reply,
-        citations: [],
-        found: [],
-        inferred: [],
-        unknown: local.unknown,
-        helpers: HELPERS_LOCAL,
-      };
+      done = offlineResult(clean, hermes.key);
     } else {
-      const turn = await researchTurn(hermes, clean);
+      const turn = await turnFn(hermes, clean);
       done = finish(turn, clean, hermes.key);
     }
     const note = { id, at: Date.now(), question: clean, ...done };
-    notes.push(note);
-    while (notes.length > HISTORY_CAP) notes.shift();
-    status = done.status;
+    session.notes.push(note);
+    while (session.notes.length > HISTORY_CAP) session.notes.shift();
+    rememberSources(session, note);
+    session.status = done.status;
+    session.at = Date.now();
     return {
       schema: "galion-research/1",
       app: "hermes",
       model: hermes.model || LLM_NAME,
       ...noteBody(note),
+      sources: sourcesOf(session),
     };
   }
 
-  return { ask, statusBody, historyBody, runningLine: HELPERS_RUNNING };
+  return { ask, statusBody, historyBody, sourcesBody, runningLine: HELPERS_RUNNING };
 }

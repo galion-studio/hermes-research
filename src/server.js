@@ -1,12 +1,26 @@
 // Galion Research. The page, the galion-one-voice /research backend, and Hermes.
 // The gateway key is read from the environment inside the Hermes client. It is not logged.
 
+import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import http from "node:http";
 import { fileURLToPath } from "node:url";
 
-import { createDesk } from "./desk.js";
+import { HELPERS_OFFLINE, createDesk } from "./desk.js";
+import { localKnowledge } from "./local.js";
 import { LLM_NAME, configFromEnv, isLoopback, keyState } from "./hermes.js";
+import {
+  BAD_JSON,
+  BODY_LIMIT,
+  BODY_TOO_LONG,
+  EMPTY_QUESTION,
+  QUESTION_LIMIT,
+  QUESTION_TOO_LONG,
+  errorBody,
+  questionLength,
+} from "./limits.js";
+
+export { BODY_LIMIT, QUESTION_LIMIT };
 
 const PAGE = readFileSync(fileURLToPath(new URL("../public/research.html", import.meta.url)));
 
@@ -37,21 +51,39 @@ export function oneTarget(raw) {
   return `${origin}/one`;
 }
 
-function readBody(req, limit = 32_768) {
+export function newSessionId() {
+  return randomBytes(16).toString("hex");
+}
+
+export function sessionToken(value) {
+  const text = String(value || "");
+  if (/^[a-f0-9]{32}$/.test(text)) return text;
+  const match = /(?:^|;\s*)research_session=([a-f0-9]{32})\b/.exec(text);
+  return match ? match[1] : null;
+}
+
+function readBody(req, limit = BODY_LIMIT) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let size = 0;
+    let settled = false;
     req.on("data", (chunk) => {
+      if (settled) return;
       size += chunk.length;
       if (size > limit) {
+        settled = true;
+        req.pause();
         reject(Object.assign(new Error("limit"), { code: 413 }));
-        req.destroy();
         return;
       }
       chunks.push(chunk);
     });
-    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
-    req.on("error", reject);
+    req.on("end", () => {
+      if (!settled) resolve(Buffer.concat(chunks).toString("utf8"));
+    });
+    req.on("error", (err) => {
+      if (!settled) reject(err);
+    });
   });
 }
 
@@ -100,10 +132,27 @@ export function createApp(env = process.env) {
     return null;
   }
 
+  function sessionIdFor(req, res) {
+    const fromCookie = sessionToken(req.headers.cookie);
+    const fromHeader = sessionToken(req.headers["x-research-session"]);
+    const id = fromCookie || fromHeader || newSessionId();
+    if (!fromCookie) {
+      res.setHeader("Set-Cookie", `research_session=${id}; HttpOnly; SameSite=Strict; Path=/`);
+    }
+    return id;
+  }
+
   return async function handle(req, res) {
     const url = new URL(req.url || "/", "http://127.0.0.1");
     const path = url.pathname;
     const method = req.method || "GET";
+    const sessionId = sessionIdFor(req, res);
+
+    if (method === "GET" && path === "/favicon.ico") {
+      res.writeHead(204, { "Cache-Control": "no-store" });
+      res.end();
+      return;
+    }
 
     if (method === "GET" && path === "/health") {
       json(res, 200, { ok: true, service: "galion-research", bind: "127.0.0.1" });
@@ -127,7 +176,7 @@ export function createApp(env = process.env) {
         send(res, proxied.status, "application/json; charset=utf-8", proxied.text);
         return;
       }
-      const body = desk.statusBody();
+      const body = desk.statusBody(sessionId);
       if (upstream) body.upstream = "down";
       json(res, 200, body);
       return;
@@ -139,16 +188,29 @@ export function createApp(env = process.env) {
         send(res, proxied.status, "application/json; charset=utf-8", proxied.text);
         return;
       }
-      json(res, 200, desk.historyBody());
+      json(res, 200, desk.historyBody(sessionId));
+      return;
+    }
+
+    if (method === "GET" && path === "/research/sources") {
+      json(res, 200, desk.sourcesBody(sessionId));
       return;
     }
 
     if (method === "POST" && path === "/research/ask") {
+      const declared = Number(req.headers["content-length"] || "");
+      if (Number.isFinite(declared) && declared > BODY_LIMIT) {
+        json(res, 413, errorBody("too-large", BODY_TOO_LONG));
+        req.resume();
+        return;
+      }
       let raw = "";
       try {
         raw = await readBody(req);
-      } catch {
-        send(res, 413, "text/plain; charset=utf-8", "question");
+      } catch (err) {
+        const tooLarge = err && err.code === 413;
+        json(res, tooLarge ? 413 : 400, errorBody(tooLarge ? "too-large" : "bad-request", tooLarge ? BODY_TOO_LONG : BAD_JSON));
+        req.resume();
         return;
       }
       let question = "";
@@ -156,10 +218,15 @@ export function createApp(env = process.env) {
         const parsed = JSON.parse(raw);
         question = typeof parsed.question === "string" ? parsed.question.trim() : "";
       } catch {
-        question = "";
+        json(res, 400, errorBody("bad-json", BAD_JSON));
+        return;
       }
       if (!question) {
-        send(res, 400, "text/plain; charset=utf-8", "question");
+        json(res, 400, errorBody("empty", EMPTY_QUESTION));
+        return;
+      }
+      if (questionLength(question) > QUESTION_LIMIT) {
+        json(res, 413, errorBody("too-large", QUESTION_TOO_LONG));
         return;
       }
       const proxied = await fromUpstream("/research/ask", {
@@ -171,20 +238,22 @@ export function createApp(env = process.env) {
         send(res, proxied.status, proxied.status === 400 ? "text/plain; charset=utf-8" : "application/json; charset=utf-8", proxied.text);
         return;
       }
-      const body = await desk.ask(question);
+      const body = await desk.ask(question, sessionId);
       if (hermes.key && JSON.stringify(body).includes(hermes.key)) {
+        const local = localKnowledge("");
         json(res, 200, {
           schema: "galion-research/1",
           app: "hermes",
           model: hermes.model || LLM_NAME,
-          status: "Local",
+          status: "Offline",
           question: "",
-          reply: "Local. The research path is not reachable from here.",
+          reply: local.reply,
           citations: [],
           found: [],
           inferred: [],
-          unknown: ["Local. The research path is not reachable from here."],
-          helpers: "Helpers are quiet. Local knowledge carries the question.",
+          unknown: local.unknown,
+          sources: [{ label: "Local", text: "What is already known stays marked local." }],
+          helpers: HELPERS_OFFLINE,
           key: keyState(hermes.key),
         });
         return;

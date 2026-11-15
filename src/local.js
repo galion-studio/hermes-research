@@ -4,6 +4,8 @@
 export const LOCAL_LIMIT =
   "The research path is not reachable from here. Local. What is already known stays marked local.";
 
+export const OFFLINE_MARK = "Offline.";
+
 const FACTS = [
   {
     when: (q) =>
@@ -40,8 +42,8 @@ export function localKnowledge(question) {
   const q = question.toLowerCase();
   const known = FACTS.filter((fact) => fact.when(q)).map((fact) => fact.say);
   const reply = known.length
-    ? `Local. ${known.join(" ")} The research path is not reachable from here.`
-    : LOCAL_LIMIT;
+    ? `${OFFLINE_MARK} Local. ${known.join(" ")} The research path is not reachable from here.`
+    : `${OFFLINE_MARK} ${LOCAL_LIMIT}`;
   return {
     reply,
     citations: [],

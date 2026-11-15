@@ -21,7 +21,7 @@ import {
   researchTurn,
 } from "../src/hermes.js";
 import { localKnowledge } from "../src/local.js";
-import { oneTarget, researchOrigin, start } from "../src/server.js";
+import { oneTarget, researchOrigin, sessionToken, start } from "../src/server.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const KEY = "test-gateway-key-not-for-git";
@@ -34,6 +34,11 @@ async function withServer(env, fn) {
   } finally {
     await new Promise((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())));
   }
+}
+
+function cookieFrom(response, previous = "") {
+  const token = sessionToken(response.headers.get("set-cookie") || "");
+  return token ? `research_session=${token}` : previous;
 }
 
 function listen(handler) {
@@ -86,6 +91,13 @@ describe("page", () => {
       "Helpers: reading, sources, notebook.",
       "None in hand.",
       "No source yet.",
+      'id="error"',
+      'id="state-line"',
+      'role="alert"',
+      "Hermes · Offline",
+      "The question is empty.",
+      "The question is longer than 2000 characters.",
+      "What is already known stays marked local.",
       "galion.app/research",
       "Ultra $220/€220 per month",
       'href="/one"',
@@ -241,25 +253,33 @@ describe("server", () => {
       assert.match(html, /Ask anything/);
       const root = await fetch(`${base}/`);
       assert.equal(root.status, 200);
+      const icon = await fetch(`${base}/favicon.ico`);
+      assert.equal(icon.status, 204);
       const status = await (await fetch(`${base}/research/hermes`)).json();
       assert.equal(status.app, "hermes");
       assert.equal(status.key, "none");
-      assert.equal(status.status, "Local");
+      assert.equal(status.status, "Offline");
       assert.equal(JSON.stringify(status).includes(KEY), false);
       const asked = await fetch(`${base}/research/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: "Who are you?" }),
       });
+      const cookie = cookieFrom(asked);
       const body = await asked.json();
-      assert.equal(body.status, "Local");
+      assert.equal(body.status, "Offline");
       assert.match(body.reply, /Galion Research\. What are we looking into\?/);
-      assert.match(body.reply, /Local/);
+      assert.match(body.reply, /^Offline\. Local\./);
       assert.deepEqual(body.citations, []);
+      assert.equal(body.found.length, 0);
+      assert.equal(body.sources.length, 1);
+      assert.equal(body.sources[0].label, "Local");
+      assert.equal(body.sources.some((source) => source.label === "Citation"), false);
       assert.equal(body.helpers, HELPERS_LOCAL);
-      const history = await (await fetch(`${base}/research/history`)).json();
+      const history = await (await fetch(`${base}/research/history`, { headers: { cookie } })).json();
       assert.match(history.items[0].question, /Who are you/);
       assert.equal(history.items[0].citations.length, 0);
+      assert.equal(history.sources[0].label, "Local");
       const empty = await fetch(`${base}/research/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -313,22 +333,24 @@ describe("server", () => {
         const health = await (await fetch(`${base}/health`)).json();
         assert.equal(health.ok, true);
         assert.equal(JSON.stringify(health).includes(KEY), false);
-        const asked = await (
-          await fetch(`${base}/research/ask`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ question: "What colour is the wash?" }),
-          })
-        ).json();
+        const askedResponse = await fetch(`${base}/research/ask`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: "What colour is the wash?" }),
+        });
+        const asked = await askedResponse.json();
         assert.equal(asked.status, "Returned");
         assert.equal(asked.citations.length, 1);
         assert.equal(asked.citations[0].n, 1);
         assert.match(asked.citations[0].text, /Galion brand note/);
         assert.deepEqual(asked.found, ["The wash is Ink and Sky."]);
+        assert.equal(asked.sources[0].label, "Citation");
+        assert.match(asked.sources[0].text, /Galion brand note/);
         const packed = JSON.stringify(asked);
         assert.equal(packed.includes(KEY), false);
         assert.equal(packed.includes("Bearer"), false);
-        const history = await (await fetch(`${base}/research/history`)).text();
+        const historyResponse = await fetch(`${base}/research/history`, { headers: { cookie: cookieFrom(askedResponse) } });
+        const history = await historyResponse.text();
         assert.equal(history.includes(KEY), false);
         assert.match(history, /What colour is the wash/);
       });
@@ -437,7 +459,7 @@ describe("server", () => {
             body: JSON.stringify({ question: "What does Ultra cost?" }),
           })
         ).json();
-        assert.equal(asked.status, "Local");
+        assert.equal(asked.status, "Offline");
         assert.match(asked.reply, /Ultra is \$220\/€220 per month/);
         assert.deepEqual(asked.citations, []);
         assert.equal(JSON.stringify(asked).includes(KEY), false);
