@@ -17,6 +17,7 @@ export const NOT_FOUND = "That path is not on this desk.";
 export const METHOD_NOT_ALLOWED = "That method is not allowed.";
 export const RATE_LIMITED = "Too many requests. Wait a moment and try again.";
 export const UPSTREAM_REFUSED = "The research origin refused the question.";
+export const ORIGIN_REFUSED = "That question did not come from this desk.";
 
 export const ERROR_KEYS = Object.freeze([
   "schema",
