@@ -177,7 +177,8 @@ describe("licence and archive", () => {
     const files = [];
     async function walk(dir) {
       for (const entry of await readdir(dir, { withFileTypes: true })) {
-        if (entry.name === "node_modules" || entry.name === ".git") continue;
+        // build/ is the Pi seed output, including the downloaded Node tree. It is not committed.
+        if (entry.name === "node_modules" || entry.name === ".git" || entry.name === "build") continue;
         const full = path.join(dir, entry.name);
         if (entry.isDirectory()) await walk(full);
         else if (/\.(js|md|html|yml|json|example|service|sh)$/.test(entry.name) || entry.name === "LICENSE") files.push(full);

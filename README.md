@@ -102,6 +102,8 @@ GitHub Actions (`.github/workflows/ci.yml`) runs `npm run build`, `npm run audit
 
 The desk is not deployed. The kit in this repo is the hardened unit, the env example, the health check, and the release layout. See [docs/DEPLOY.md](docs/DEPLOY.md). The scripts refuse `--execute`. Nothing in this repository connects to a host.
 
+The Pi 5 seed is a single executable of this same desk for `linux-arm64` and `linux-x64`. The workflow that builds it smoke-starts the arm64 binary under qemu-user. It does not boot a Raspberry Pi. See [docs/PI5-SEED.md](docs/PI5-SEED.md).
+
 ## Licence
 
 Standard MIT, plus:

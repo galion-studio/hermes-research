@@ -97,6 +97,10 @@ The dry-run script prints the same rollback line. The previous directory is kept
 
 `.github/workflows/ci.yml` runs `npm run build`, `npm test`, and the Playwright suite on push and on pull request. `npm run build` is `node --check` on the sources, the health check, and the tests. There is no bundle and no deploy job. Playwright stays the desktop and phone check from the research desk.
 
+## Pi 5 seed
+
+[docs/PI5-SEED.md](PI5-SEED.md) is the same desk packed as one executable for a Raspberry Pi 5. The workflow builds `linux-arm64` and `linux-x64`, smoke-starts the arm64 binary under qemu-user, and uploads `research-pi5-seed-<sha>.tar.gz`. It does not boot a Pi, and it does not run this unit. The Pi unit is `deploy/systemd/galion-research-pi5.service`. It listens on `127.0.0.1:8787` and execs the binary, so the Pi does not need Node. Do not enable it beside `galion-research.service`. Both use port 8787.
+
 ## Licence
 
 Standard MIT, plus the four Galion Labs lines in [LICENSE](../LICENSE).
