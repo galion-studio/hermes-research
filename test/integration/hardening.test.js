@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import http from "node:http";
 import { readFileSync } from "node:fs";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -15,6 +17,7 @@ import {
   EMPTY_QUESTION,
   METHOD_NOT_ALLOWED,
   NOT_FOUND,
+  ORIGIN_REFUSED,
   RATE_LIMITED,
   UPSTREAM_REFUSED,
 } from "../../src/limits.js";
@@ -308,6 +311,64 @@ describe("one error shape", () => {
       assert.equal(history.items.length, 2);
       assert.equal(JSON.stringify(history).includes(RATE_LIMITED), false);
     });
+  });
+
+  it("refuses a cross-site post before it is stored or counted", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "galion-origin-"));
+    try {
+      await withServer({ GALION_ASK_RATE: "1", GALION_UPLOAD_DIR: dir }, async (base) => {
+        const url = new URL(base);
+        const blocked = await post(base, "Who are you?", {
+          "x-research-session": SESSION,
+          origin: "https://evil.example",
+        });
+        assert.equal(blocked.response.status, 403);
+        assertError(blocked.data, "origin", ORIGIN_REFUSED);
+        assert.match(blocked.response.headers.get("content-security-policy") || "", /frame-ancestors 'none'/);
+        assert.equal(blocked.response.headers.get("referrer-policy"), "no-referrer");
+
+        const otherPort = await post(base, "Who are you?", { origin: `http://127.0.0.1:${Number(url.port) + 1}` });
+        assert.equal(otherPort.response.status, 403);
+
+        const crossSite = await post(base, "Who are you?", { "sec-fetch-site": "cross-site" });
+        assert.equal(crossSite.response.status, 403);
+
+        const boundary = "originboundary";
+        const form = [
+          `--${boundary}`,
+          'Content-Disposition: form-data; name="question"',
+          "",
+          "Who are you?",
+          `--${boundary}`,
+          'Content-Disposition: form-data; name="file"; filename="../../etc/passwd"',
+          "",
+          "secret",
+          `--${boundary}--`,
+          "",
+        ].join("\r\n");
+        const uploaded = await fetch(`${base}/research/ask`, {
+          method: "POST",
+          headers: {
+            "content-type": `multipart/form-data; boundary=${boundary}`,
+            origin: "https://evil.example",
+          },
+          body: form,
+        });
+        assert.equal(uploaded.status, 403);
+        assert.deepEqual(await readdir(dir), []);
+
+        const page = await fetch(`${base}/research`, { headers: { origin: "https://evil.example" } });
+        assert.equal(page.status, 200);
+
+        const same = await post(base, "Who are you?", { "x-research-session": SESSION, origin: url.origin });
+        assert.equal(same.response.status, 200);
+        assert.equal(same.data.status, "Offline");
+        const desk = await post(base, "Who are you?", { "x-research-session": SESSION, origin: "https://galion.app" });
+        assert.equal(desk.response.status, 429);
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 
   it("turns a plain refusal from the research origin into the same error document", async () => {

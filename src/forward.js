@@ -257,8 +257,25 @@ export function acceptHistory(text) {
   return { ...parsed, items };
 }
 
+function valueHasKey(value, key, depth) {
+  if (depth > 24) return true;
+  if (typeof value === "string") return value.includes(key);
+  if (Array.isArray(value)) return value.some((item) => valueHasKey(item, key, depth + 1));
+  if (value && typeof value === "object") {
+    return Object.entries(value).some(([name, item]) => name.includes(key) || valueHasKey(item, key, depth + 1));
+  }
+  return false;
+}
+
 export function leaksKey(text, key) {
-  return Boolean(key) && String(text).includes(key);
+  if (!key) return false;
+  const raw = String(text ?? "");
+  if (raw.includes(key)) return true;
+  try {
+    return valueHasKey(JSON.parse(raw), key, 0);
+  } catch {
+    return false;
+  }
 }
 
 const WIRE_STYLE =

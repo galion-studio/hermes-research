@@ -6,6 +6,7 @@ import {
   acceptCitations,
   askTimeoutFromEnv,
   forwardConfig,
+  leaksKey,
   loopbackOrigin,
   voiceTarget,
 } from "../../src/forward.js";
@@ -51,6 +52,19 @@ describe("loopback forward config", () => {
     const cfg = forwardConfig({ GALION_UPSTREAM_TIMEOUT_MS: "600000", GALION_ASK_TIMEOUT_MS: "85000" });
     assert.equal(cfg.timeoutMs, 4_000);
     assert.equal(cfg.askTimeoutMs, 85_000);
+  });
+});
+
+describe("key leakage", () => {
+  it("treats a decoded JSON escape of the key as a leak", () => {
+    const key = "test-gateway-key-not-for-git";
+    const encoded = [...key].map((ch) => `\\u${ch.charCodeAt(0).toString(16).padStart(4, "0")}`).join("");
+    const raw = `{"schema":"galion-research/1","note":"${encoded}","${encoded}":"hidden"}`;
+    assert.equal(raw.includes(key), false);
+    assert.equal(leaksKey(raw, key), true);
+    assert.equal(leaksKey(JSON.stringify({ schema: "galion-research/1", reply: "Ink and Sky" }), key), false);
+    assert.equal(leaksKey("not json", ""), false);
+    assert.equal(leaksKey("the key is test-gateway-key-not-for-git", key), true);
   });
 });
 
