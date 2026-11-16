@@ -18,7 +18,7 @@ import {
   RATE_LIMITED,
   UPSTREAM_REFUSED,
 } from "../../src/limits.js";
-import { BIND_HOST, sessionToken, start } from "../../src/server.js";
+import { BIND_HOST, healthReadHeaders, sessionToken, start } from "../../src/server.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const SESSION = "c".repeat(32);
@@ -237,6 +237,52 @@ describe("one error shape", () => {
       });
       assert.equal(bulky.status, 413);
       assertError(await bulky.json(), "too-large", BODY_TOO_LONG);
+    });
+  });
+
+  it("lets a loopback status page read GET /health without a session or a rate count", async () => {
+    await withServer({ GALION_RATE_LIMIT: "1" }, async (base) => {
+      const health = await fetch(`${base}/health`);
+      const body = await health.json();
+      assert.equal(health.status, 200);
+      assert.equal(health.headers.get("set-cookie"), null);
+      assert.equal(health.headers.get("allow"), "GET");
+      assert.deepEqual(body, { ok: true, service: "galion-research", bind: BIND_HOST });
+
+      const desk = await fetch(`${base}/research`);
+      assert.equal(desk.status, 200);
+      const blocked = await fetch(`${base}/research`);
+      assert.equal(blocked.status, 429);
+
+      const again = await fetch(`${base}/health`);
+      assert.equal(again.status, 200);
+      assert.equal(again.headers.get("set-cookie"), null);
+      assert.deepEqual(await again.json(), body);
+
+      const page = await fetch(`${base}/health`, { headers: { Origin: "http://127.0.0.1:18181" } });
+      assert.equal(page.status, 200);
+      assert.equal(page.headers.get("access-control-allow-origin"), "http://127.0.0.1:18181");
+      assert.equal(page.headers.get("cross-origin-resource-policy"), "cross-origin");
+      assert.equal(page.headers.get("set-cookie"), null);
+      assert.equal((await page.text()).includes("18181"), false);
+
+      const named = await fetch(`${base}/health`, { headers: { Origin: "http://localhost:18181" } });
+      assert.equal(named.headers.get("access-control-allow-origin"), "http://localhost:18181");
+
+      const v6 = await fetch(`${base}/health`, { headers: { Origin: "http://[::1]:18181" } });
+      assert.equal(v6.headers.get("access-control-allow-origin"), "http://[::1]:18181");
+
+      for (const origin of ["http://example.invalid", "https://127.0.0.1:18181"]) {
+        const foreign = await fetch(`${base}/health`, { headers: { Origin: origin } });
+        assert.equal(foreign.status, 200);
+        assert.equal(foreign.headers.get("access-control-allow-origin"), null);
+        assert.equal(foreign.headers.get("cross-origin-resource-policy"), "same-origin");
+        const text = await foreign.text();
+        assert.equal(text.includes("example.invalid"), false);
+        assert.deepEqual(JSON.parse(text), body);
+      }
+      assert.deepEqual(healthReadHeaders("http://user:pw@127.0.0.1:18181"), {});
+      assert.deepEqual(healthReadHeaders("http://example.invalid"), {});
     });
   });
 
