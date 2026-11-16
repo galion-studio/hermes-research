@@ -69,7 +69,9 @@ describe("pi seed", () => {
   it("builds both architectures under qemu-user and uploads the named archive", () => {
     const workflow = readFileSync(path.join(ROOT, ".github/workflows/pi-seed.yml"), "utf8");
     assert.match(workflow, /qemu-user-static/);
+    assert.match(workflow, /qemu-user/);
     assert.match(workflow, /qemu-aarch64-static/);
+    assert.match(workflow, /qemu-aarch64/);
     assert.match(workflow, /gcc-aarch64-linux-gnu/);
     assert.match(workflow, /scripts\/pi-seed\/smoke\.js/);
     assert.match(workflow, /scripts\/pi-seed\/build\.js/);

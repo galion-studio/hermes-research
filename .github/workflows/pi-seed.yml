@@ -22,7 +22,24 @@ jobs:
       - name: qemu-user and the arm64 libraries the official node binary needs
         run: |
           sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-user-static gcc-aarch64-linux-gnu
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross
+          # Ubuntu 24.04 ships qemu-user-static (qemu-aarch64-static).
+          # Ubuntu 26.04 makes that name virtual and ships qemu-user (qemu-aarch64).
+          if apt-cache policy qemu-user-static | grep -q 'Candidate: (none)'; then
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-user
+          else
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-user-static
+          fi
+          if [ -x /usr/bin/qemu-aarch64-static ]; then
+            echo "qemu=/usr/bin/qemu-aarch64-static" >> "$GITHUB_ENV"
+          elif [ -x /usr/bin/qemu-aarch64 ]; then
+            echo "qemu=/usr/bin/qemu-aarch64" >> "$GITHUB_ENV"
+          else
+            echo "refusing: qemu-user binary" >&2
+            exit 1
+          fi
+          test -e /usr/aarch64-linux-gnu/lib/ld-linux-aarch64.so.1
+          test -e /usr/aarch64-linux-gnu/lib/libstdc++.so.6
 
       - name: build the linux-arm64 and linux-x64 single executables
         run: node scripts/pi-seed/build.js
@@ -31,7 +48,7 @@ jobs:
         run: node scripts/pi-seed/smoke.js build/pi-seed/out/galion-research-linux-x64
 
       - name: smoke-start linux-arm64 under qemu-user and check /health
-        run: node scripts/pi-seed/smoke.js build/pi-seed/out/galion-research-linux-arm64 --qemu qemu-aarch64-static --sysroot /usr/aarch64-linux-gnu
+        run: node scripts/pi-seed/smoke.js build/pi-seed/out/galion-research-linux-arm64 --qemu "$qemu" --sysroot /usr/aarch64-linux-gnu
 
       - name: pack research-pi5-seed archive
         id: pack

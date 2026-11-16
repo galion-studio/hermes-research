@@ -10,7 +10,7 @@ This repository does not copy the binary onto a Pi, does not start systemd, and 
 
 - It builds both executables there.
 - It starts the x64 executable on that runner.
-- It starts the arm64 executable with `qemu-aarch64-static` (`qemu-user`) and the arm64 sysroot from `gcc-aarch64-linux-gnu`.
+- It starts the arm64 executable under qemu-user, with the `aarch64-linux-gnu` cross sysroot. Ubuntu 24.04 provides that emulator as `qemu-aarch64-static` from `qemu-user-static`. Ubuntu 26.04, the image behind `ubuntu-latest` when this workflow first ran, provides it as `qemu-aarch64` from `qemu-user`.
 - Each process must answer `GET /health` on `127.0.0.1`. The body is `{"ok":true,"service":"galion-research","bind":"127.0.0.1"}`. The smoke also loads `/research` and asks one question, which stays `Offline` with an empty citation list.
 
 That is the whole hardware claim. qemu-user does not boot Raspberry Pi OS. It does not run `galion-research-pi5.service`. It does not apply `MemoryMax=256M`, `IPAddressAllow=localhost`, or the rest of the sandbox. It does not measure the Pi's storage, network, or CPU. A human on a Raspberry Pi 5 is the check this workflow does not do.
