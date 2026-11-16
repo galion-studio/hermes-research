@@ -47,6 +47,18 @@ The unit does not set a syscall filter, and it does not set `MemoryDenyWriteExec
 
 `deploy/research.env.example` lists every variable the process reads. `GALION_LLM_KEY` is commented and empty. The real key is written on the host, mode `0600`, owner `galion`. It is not copied into a reply. Responses say `key` is `set` or `none`.
 
+The gateway key can come from one dotenv line. `GALION_LLM_KEY_FILE` is the file. `GALION_LLM_KEY_NAME` is the line name (`API_SERVER_KEY` on the Hermes gateway file). Both must be non-empty after trim. A non-empty value from that line wins. If either is unset, the file cannot be read, or the line is missing or empty, the process uses the trimmed `GALION_LLM_KEY`. No other line from the file is copied into the environment.
+
+A file value with no `/`, no `\`, and no `..` is a systemd credential name. When `CREDENTIALS_DIRECTORY` is a non-empty absolute path, the process reads `$CREDENTIALS_DIRECTORY/$file` (`LoadCredential=`). An absolute `GALION_LLM_KEY_FILE` is read as given. A relative path is ignored. The process does not search the disk. The committed unit does not set the key, a live path, or `LoadCredential`. A host drop-in can:
+
+```
+LoadCredential=hermes-env:/opt/galion/hermes/.env
+Environment=GALION_LLM_KEY_FILE=hermes-env
+Environment=GALION_LLM_KEY_NAME=API_SERVER_KEY
+```
+
+`/opt/galion/hermes/.env` stays on the host. It is not in this repository. `hermes-env` is the credential name, and `API_SERVER_KEY` is the line in that file.
+
 ## Health
 
 `GET /health` returns `200` and `{"ok":true,"service":"galion-research","bind":"127.0.0.1"}`. It does not call Hermes, the research origin, or include the key. It sets no cookie and it is not counted by the rate limit. A browser page on loopback `http`, including the name `localhost`, may read the body. Any other origin is not copied into the response. Any other method is `405`.
