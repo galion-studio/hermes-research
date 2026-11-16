@@ -37,7 +37,7 @@ No `Authorization` header is added on these forwards. The Hermes key is not copi
 
 ## Health and status
 
-`GET /health` is unchanged. It answers `{"ok":true,"service":"galion-research","bind":"127.0.0.1"}` and does not dial an upstream.
+`GET /health` answers `{"ok":true,"service":"galion-research","bind":"127.0.0.1"}`. It is read-only: no cookie, no rate-limit count, and no upstream. A browser page on loopback `http`, including the name `localhost`, may read it. Any other origin is not copied into the response. An OS status page on the desktop's loopback listener can call this probe.
 
 `GET /research/wire` is the indicator. The served desk page shows it as `One · … · Voice · … · Hermes · …` beside the Hermes line. The static file `public/research.html` is not edited; the line is added when the page is served.
 

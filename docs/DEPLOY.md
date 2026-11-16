@@ -49,7 +49,7 @@ The unit does not set a syscall filter, and it does not set `MemoryDenyWriteExec
 
 ## Health
 
-`GET /health` returns `200` and `{"ok":true,"service":"galion-research","bind":"127.0.0.1"}`. It does not call Hermes, the research origin, or include the key.
+`GET /health` returns `200` and `{"ok":true,"service":"galion-research","bind":"127.0.0.1"}`. It does not call Hermes, the research origin, or include the key. It sets no cookie and it is not counted by the rate limit. A browser page on loopback `http`, including the name `localhost`, may read the body. Any other origin is not copied into the response. Any other method is `405`.
 
 `GET /research/wire` is the desk indicator. It dials only the loopback upstreams from [docs/FORWARD.md](FORWARD.md). It does not include the key. `GET /health` does not call it.
 

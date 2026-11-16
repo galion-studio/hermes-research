@@ -22,6 +22,8 @@ npm start
 
 The desk is at `http://127.0.0.1:8787/research` (and `/`). `PORT` changes the port. The process binds the loopback interface.
 
+`GET /health` is the read-only probe an OS status page calls. The body is `{"ok":true,"service":"galion-research","bind":"127.0.0.1"}`. It sets no cookie, it is not counted by the rate limit, and it does not dial Hermes or a research origin. A browser page on loopback `http`, including the name `localhost`, may read that body. Any other origin is not copied into the response. Any other method is `405`.
+
 ## How this connects
 
 Two paths, then local knowledge. The gateway key never leaves the server that holds it, and it is never written into a response. Responses say `key` is `set` or `none`.
@@ -75,7 +77,7 @@ Every response sends a content security policy. The page's style and script carr
 
 ### Limits and errors
 
-A request body over 32768 bytes, or a question over 2000 characters, is `413` with `status: "Error"`. An empty question or a body that is not JSON is `400`. An unknown path is `404`. A known path with the wrong method is `405`. More than 30 questions, or more than 240 requests, from one session in 60 seconds is `429`. `GALION_ASK_RATE` and `GALION_RATE_LIMIT` override those two caps. Each of those responses is the same JSON shape: `error`, `reply`, and empty citations, found, inferred, unknown, and sources. The reply is the limit, not an answer. The question is not stored. The page shows that sentence in the error line. It does not label the failure `Offline` and it does not invent a source. A plain-text refusal from the research origin is rewritten into that same shape.
+A request body over 32768 bytes, or a question over 2000 characters, is `413` with `status: "Error"`. An empty question or a body that is not JSON is `400`. An unknown path is `404`. A known path with the wrong method is `405`. More than 30 questions, or more than 240 requests, from one session in 60 seconds is `429`. `GET /health` is not one of those requests. `GALION_ASK_RATE` and `GALION_RATE_LIMIT` override those two caps. Each of those responses is the same JSON shape: `error`, `reply`, and empty citations, found, inferred, unknown, and sources. The reply is the limit, not an answer. The question is not stored. The page shows that sentence in the error line. It does not label the failure `Offline` and it does not invent a source. A plain-text refusal from the research origin is rewritten into that same shape.
 
 ### Files
 

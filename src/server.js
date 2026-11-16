@@ -169,6 +169,28 @@ function isErrorDocument(parsed) {
   return Boolean(parsed && parsed.schema === "galion-research/1" && parsed.status === "Error" && Array.isArray(parsed.citations));
 }
 
+// A browser status page on loopback http may read GET /health. The origin is
+// echoed only in that case. Any other Origin is dropped, so a public host is
+// not copied into the response.
+export function healthReadHeaders(origin) {
+  if (!origin || typeof origin !== "string") return {};
+  let url;
+  try {
+    url = new URL(origin);
+  } catch {
+    return {};
+  }
+  if (url.username || url.password) return {};
+  if (url.protocol !== "http:") return {};
+  const host = url.hostname;
+  if (host !== "localhost" && !isLoopback(host)) return {};
+  return {
+    "Access-Control-Allow-Origin": url.origin,
+    Vary: "Origin",
+    "Cross-Origin-Resource-Policy": "cross-origin",
+  };
+}
+
 function sendProxied(res, proxied) {
   let parsed = null;
   if (proxied.text) {
@@ -237,6 +259,15 @@ export function createApp(env = process.env) {
       return;
     }
 
+    if (path === "/health" && method === "GET") {
+      json(res, 200, { ok: true, service: "galion-research", bind: BIND_HOST }, {
+        Allow: "GET",
+        ...healthReadHeaders(req.headers.origin),
+      });
+      req.resume();
+      return;
+    }
+
     const kind = method === "POST" && path === "/research/ask" ? "ask" : "request";
     const gate = limiter.hit(presented || "anon", kind);
     if (!gate.ok) {
@@ -255,11 +286,6 @@ export function createApp(env = process.env) {
 
     if (method === "GET" && path === "/favicon.ico") {
       sendEmpty(res, 204);
-      return;
-    }
-
-    if (method === "GET" && path === "/health") {
-      json(res, 200, { ok: true, service: "galion-research", bind: BIND_HOST });
       return;
     }
 

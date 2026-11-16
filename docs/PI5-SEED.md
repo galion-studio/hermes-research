@@ -21,7 +21,7 @@ The arm64 binary is the official Node.js build. Its glibc requirement, read from
 
 `src/server.js` binds `127.0.0.1`. A host argument cannot move it. The unit sets `PORT=8787` after the optional environment file, so the listen address is `127.0.0.1:8787`.
 
-With `GALION_RESEARCH_URL` unset and Hermes unset, a question is answered from local knowledge and marked `Offline`. Citations stay empty. `GET /health` does not call Hermes or a research origin, and it does not include a key.
+With `GALION_RESEARCH_URL` unset and Hermes unset, a question is answered from local knowledge and marked `Offline`. Citations stay empty. `GET /health` does not call Hermes or a research origin, and it does not include a key. It sets no cookie and it is not counted by the rate limit, so an OS status page can call it. A browser page on loopback `http`, including the name `localhost`, may read the body. Any other origin is not copied into the response.
 
 The unit sets `IPAddressDeny=any` and `IPAddressAllow=localhost`. The process cannot dial off the machine. A Hermes on `127.0.0.1` still fits inside that rule. Widening the address policy is a human edit of the unit.
 
