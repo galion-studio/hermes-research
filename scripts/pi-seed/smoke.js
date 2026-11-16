@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Start a seed binary on 127.0.0.1 and check /health, the desk, and an offline answer.
-// qemu-user is optional (--qemu and --sysroot). Does not deploy. --execute is refused.
+// Start a seed binary on 127.0.0.1 and check /health, the first-run screen, and an offline answer.
+// qemu-user is optional (--qemu and --sysroot). That run is an emulator. It is not a Raspberry Pi 5 result.
+// Does not deploy. --execute is refused.
 
 import { spawn } from "node:child_process";
 import net from "node:net";
@@ -142,7 +143,11 @@ async function main() {
     });
     const html = await page.text();
     if (page.status !== 200 || !html.includes("<title>Galion Research</title>")) fail("desk page", logs());
+    if (!html.includes('id="first-run"') || !html.includes("<h1>What are we looking into?</h1>") || !html.includes("A question starts here.")) {
+      fail("first-run", logs());
+    }
     console.log("desk 200");
+    console.log("first-run present");
 
     const asked = await fetch(`http://127.0.0.1:${port}/research/ask`, {
       method: "POST",

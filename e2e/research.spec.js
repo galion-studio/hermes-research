@@ -132,6 +132,9 @@ test("desktop opens on the bare field", async ({ page }) => {
   await expect(page.locator("#work")).toBeHidden();
   await expect(page.locator("#add-image")).toBeHidden();
   await expect(page.locator("#commit-hint")).toBeHidden();
+  await expect(page.getByRole("heading", { name: "What are we looking into?" })).toBeVisible();
+  await expect(page.locator("#first-run-line")).toHaveText("A question starts here.");
+  await expect(page.locator("#state-line")).toBeHidden();
   await expect(page.getByRole("button", { name: "Voice" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Add files" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Silence" })).toBeVisible();
@@ -156,6 +159,7 @@ test("desktop desk keeps the research labels", async ({ page }) => {
   await page.goto("/research");
   await page.getByRole("button", { name: "Show interface" }).click();
   await expect(page.locator("body")).not.toHaveAttribute("data-ui", "minimal");
+  await expect(page.locator("#first-run")).toBeHidden();
   await expect(page.getByRole("button", { name: "Hide interface" })).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByRole("heading", { name: "Sources" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Citations" })).toBeVisible();
@@ -169,6 +173,7 @@ test("desktop desk keeps the research labels", async ({ page }) => {
 
   await page.getByRole("button", { name: "Hide interface" }).click();
   await expect(page.locator("#work")).toBeHidden();
+  await expect(page.locator("#first-run")).toBeVisible();
   await expect(page.locator("#prompt")).toBeVisible();
   await expect(page.locator("#voice")).toBeVisible();
   await expect(page.locator("#add-file")).toBeVisible();
@@ -178,6 +183,7 @@ test("phone keeps the field, the disc, and the file plus", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/research");
   await expect(page.locator("#rail")).toBeHidden();
+  await expect(page.getByRole("heading", { name: "What are we looking into?" })).toBeVisible();
   await expect(page.locator("#voice")).toBeVisible();
   await expect(page.locator("#add-file")).toBeVisible();
   const field = await page.locator(".field").boundingBox();
@@ -335,6 +341,7 @@ test("a local question leaves the citation list empty", async ({ page }) => {
   await expect(page.locator("#reading-body")).toContainText("Galion Research. What are we looking into?");
   await expect(page.locator("#reading-body")).toContainText("Offline");
   await expect(page.locator("body")).toHaveAttribute("data-state", "offline");
+  await expect(page.locator("#first-run")).toBeHidden();
   await expect(page.locator("#hermes-status")).toContainText("Offline");
   await expect(page.locator("#error")).toBeHidden();
   await expect(page.locator("#unknown-list li")).toHaveCount(1);
