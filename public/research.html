@@ -112,6 +112,14 @@ textarea::placeholder{color:color-mix(in srgb, var(--ice) 72%, var(--ground))}
 .voice:focus-visible{outline-offset:4px}
 #voice-dot{width:120px;height:120px;display:block;background:transparent}
 .tools svg{width:22px;height:22px;display:block}
+#send{appearance:none;box-sizing:border-box;width:44px;height:44px;margin-left:auto;flex:none;display:grid;place-items:center;padding:0;
+  border:1px solid transparent;border-radius:999px;cursor:pointer;color:var(--ground);
+  background:radial-gradient(circle at 50% 42%, var(--ice), var(--sky) 62%, var(--ocean));
+  box-shadow:0 10px 28px color-mix(in srgb, var(--ocean) 35%, transparent)}
+#commit-hint{margin-left:8px}
+#send svg{width:18px;height:18px;display:block}
+#send:hover:not(:disabled){background:radial-gradient(circle at 50% 42%, var(--ice), var(--ice) 46%, var(--sky))}
+#send:disabled{background:transparent;color:var(--quiet);border-color:color-mix(in srgb, var(--ink) 28%, var(--ground));box-shadow:none;cursor:default}
 .price{margin:22px 0 0;text-align:center;font:13px/1.4 var(--om-font-sans);letter-spacing:.08em;color:var(--quiet)}
 .app{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100vh}
 #rail{padding:28px 18px 40px;border-right:1px solid var(--line);background:var(--ground)}
@@ -256,7 +264,7 @@ body[data-theme="ocean"]{
   <form class="ask" id="ask" action="#" method="post">
     <div class="field">
       <label class="sr" for="prompt">Ask</label>
-      <textarea id="prompt" name="prompt" rows="4" placeholder="Ask anything" autocomplete="off" aria-describedby="ask-hint"></textarea>
+      <textarea id="prompt" name="prompt" rows="4" placeholder="Ask anything" autocomplete="off" enterkeyhint="send" aria-describedby="ask-hint"></textarea>
       <div class="tools">
         <button type="button" id="add-file" aria-label="Add files">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
@@ -268,8 +276,11 @@ body[data-theme="ocean"]{
         <button type="button" id="silence" aria-pressed="false" aria-keyshortcuts="s">Silence</button>
         <button type="button" id="ui-toggle" aria-expanded="false" aria-controls="rail work">Show interface</button>
         <span class="hint" id="file-names" hidden></span>
-        <span class="hint" id="commit-hint">Return enqueues the question</span>
-        <span class="sr" id="ask-hint">Return enqueues the question. Shift and return keeps the line.</span>
+        <span class="hint" id="commit-hint">Send enqueues the question</span>
+        <span class="sr" id="ask-hint">Send enqueues the question. Return does the same. Shift and return keeps the line.</span>
+        <button type="submit" id="send" aria-label="Send" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h12.5M12.5 6.5 18 12l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
       </div>
     </div>
     <button type="button" class="voice" id="voice" aria-label="Voice" aria-pressed="false">
@@ -420,6 +431,8 @@ function tone(id){
 (function(){
   var files=document.getElementById("files");
   var prompt=document.getElementById("prompt");
+  var askForm=document.getElementById("ask");
+  var sendBtn=document.getElementById("send");
   var statusEl=document.getElementById("hermes-status");
   var stateLine=document.getElementById("state-line");
   var QUESTION_LIMIT=2000;
@@ -441,16 +454,25 @@ function tone(id){
   var errorEl=document.getElementById("error");
   var loadingEl=document.getElementById("loading");
   var answerEl=document.getElementById("answer");
+  function questionText(){
+    return prompt.value.replace(/\s+/g," ").trim();
+  }
+  function syncSend(){
+    var flying=document.body.getAttribute("data-state")==="loading";
+    sendBtn.disabled=flying||!questionText();
+  }
   function setBusy(on){
     if(on){
       document.body.setAttribute("data-state","loading");
       answerEl.setAttribute("aria-busy","true");
       loadingEl.hidden=false;
+      syncSend();
       return;
     }
     answerEl.removeAttribute("aria-busy");
     loadingEl.hidden=true;
     if(document.body.getAttribute("data-state")==="loading") document.body.removeAttribute("data-state");
+    syncSend();
   }
   function clearInvalid(){
     prompt.removeAttribute("aria-invalid");
@@ -641,7 +663,7 @@ function tone(id){
   });
   function commitQuestion(){
     turnStarted=true;
-    var q=prompt.value.replace(/\s+/g," ").trim();
+    var q=questionText();
     if(!q){ showError("The question is empty."); return; }
     if(Array.from(q).length>QUESTION_LIMIT){ showError("The question is longer than 2000 characters."); return; }
     clearError();
@@ -685,12 +707,17 @@ function tone(id){
       })
       .catch(function(){ carryOffline(q); });
   }
+  prompt.addEventListener("input", syncSend);
   prompt.addEventListener("keydown", function(ev){
-    if(ev.key==="Enter"&&!ev.shiftKey){
-      ev.preventDefault();
-      commitQuestion();
+    if(ev.key!=="Enter"||ev.shiftKey||ev.isComposing) return;
+    ev.preventDefault();
+    if(!sendBtn.disabled&&typeof askForm.requestSubmit==="function"){
+      askForm.requestSubmit();
+      return;
     }
+    askForm.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));
   });
+  syncSend();
   document.getElementById("ui-toggle").addEventListener("click", function(){
     var open=document.body.getAttribute("data-ui")==="minimal";
     setChrome(open);
@@ -702,8 +729,9 @@ function tone(id){
     btn.setAttribute("aria-pressed", on?"false":"true");
     document.getElementById("experiment-state").textContent=on?"Waiting for permission.":"Allowed. Nothing is trained and nothing is sent.";
   });
-  document.getElementById("ask").addEventListener("submit", function(ev){
+  askForm.addEventListener("submit", function(ev){
     ev.preventDefault();
+    if(document.body.getAttribute("data-state")==="loading") return;
     commitQuestion();
   });
 })();

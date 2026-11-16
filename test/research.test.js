@@ -151,6 +151,12 @@ describe("page", () => {
     assert.equal(audible(true), false);
     assert.equal(audible("1"), false);
     assert.equal(html.includes('if(silenceOn()) return;'), true);
+    assert.ok(html.includes('id="send"'));
+    assert.ok(html.includes('type="submit"'));
+    assert.ok(html.includes('aria-label="Send"'));
+    assert.ok(html.includes('enterkeyhint="send"'));
+    assert.ok(html.includes("askForm.requestSubmit()"));
+    assert.ok(html.includes('addEventListener("submit"'));
   });
 });
 
