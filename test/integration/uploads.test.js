@@ -85,6 +85,31 @@ describe("streamed uploads", () => {
       const sizes = await Promise.all(names.map((name) => stat(join(dir, name)).then((row) => row.size)));
       assert.equal(sizes.includes(LARGE), true);
       assert.equal(sizes.includes(Buffer.byteLength("dotfile-marker\n")), true);
+      const modes = await Promise.all(names.map((name) => stat(join(dir, name)).then((row) => row.mode & 0o777)));
+      assert.equal(modes.every((mode) => mode === 0o600), true);
+      assert.equal((await stat(dir)).mode & 0o777, 0o700);
+      assert.equal(names.every((name) => /^[a-f0-9]{32}$/.test(name)), true);
+
+      const hostileName = "<img src=x onerror=alert(1)>.html";
+      const hostile = await postForm(base, {
+        question: "<script>alert(1)</script>",
+        files: [{ name: hostileName, body: Buffer.from("hostile-marker") }],
+      });
+      assert.equal(hostile.status, 200);
+      assert.equal(hostile.data.question, "<script>alert(1)</script>");
+      assert.equal(hostile.data.sources.some((source) => source.label === "File" && source.text === hostileName), true);
+      assert.equal(hostile.text.includes(hostileName), true);
+      const page = await fetch(`${base}/research`);
+      const html = await page.text();
+      assert.equal(page.headers.get("content-type"), "text/html; charset=utf-8");
+      assert.equal(html.includes(hostileName), false);
+      assert.equal(html.includes("<script>alert(1)</script>"), false);
+      assert.equal(html.includes("innerHTML"), false);
+      assert.equal(html.includes("insertAdjacentHTML"), false);
+      assert.equal(html.includes("document.write"), false);
+      const after = await readdir(dir);
+      assert.equal(after.every((name) => /^[a-f0-9]{32}$/.test(name)), true);
+      assert.equal(after.includes(hostileName), false);
     } finally {
       await new Promise((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())));
       await rm(dir, { recursive: true, force: true });

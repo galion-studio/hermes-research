@@ -2,17 +2,22 @@
 // Any name, including a dotfile. No type allowlist and no size limit.
 // Bytes are streamed to a directory outside this repo. The prefix length is the knob.
 
-import { createWriteStream } from "node:fs";
-import { mkdir, open, rm } from "node:fs/promises";
+import { closeSync, constants as fsConstants, createWriteStream, fchmodSync, openSync } from "node:fs";
+import { chmod, lstat, mkdir, open, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 export const EXCERPT_BYTES = 1024;
 export const QUESTION_PART_CAP = 8_192;
+export const PART_HEADER_CAP = 16 * 1024;
 export const UPLOAD_FORM = "The upload was not a form.";
 export const UPLOAD_NAME = "The file name was not kept.";
+
+const FILE_FLAGS =
+  fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | (fsConstants.O_NOFOLLOW || 0);
+const DIR_FLAGS = fsConstants.O_RDONLY | fsConstants.O_DIRECTORY | (fsConstants.O_NOFOLLOW || 0);
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 
@@ -92,7 +97,7 @@ export async function parseMultipart(source, contentType, dir) {
     error.reason = "form";
     throw error;
   }
-  await mkdir(dir, { recursive: true });
+  dir = await prepareUploadDir(dir);
   const delim = Buffer.from(`\r\n--${boundary}`);
   const first = Buffer.from(`--${boundary}`);
   let pending = Buffer.alloc(0);
@@ -125,14 +130,19 @@ export async function parseMultipart(source, contentType, dir) {
       current.stream.once("error", reject);
       current.stream.end(resolve);
     });
+    const stored = await lstat(current.disk);
+    if (stored.isSymbolicLink()) throw formError();
+    await chmod(current.disk, 0o600);
     const excerpt = await readPrefix(current.disk);
     files.push({ name: current.name, bytes: current.bytes, id: current.id, excerpt });
   }
 
   async function openFile(name) {
     const id = randomBytes(16).toString("hex");
-    const disk = join(dir, id);
-    const stream = createWriteStream(disk, { flags: "wx" });
+    const disk = diskPath(dir, id);
+    if (!disk) throw formError();
+    const fd = openSync(disk, FILE_FLAGS, 0o600);
+    const stream = createWriteStream("", { fd, autoClose: true });
     stream.on("error", () => {});
     written.push(disk);
     file = { name, id, disk, stream, bytes: 0 };
@@ -196,8 +206,9 @@ export async function parseMultipart(source, contentType, dir) {
       }
       if (mode === "headers") {
         const sep = indexOf(pending, Buffer.from("\r\n\r\n"));
-        if (sep < 0) {
+        if (sep < 0 || sep > PART_HEADER_CAP) {
           notePeak();
+          if (pending.length > PART_HEADER_CAP || sep > PART_HEADER_CAP) failed = formError();
           return;
         }
         const raw = pending.subarray(0, sep).toString("utf8");
@@ -272,7 +283,13 @@ export async function parseMultipart(source, contentType, dir) {
 }
 
 export async function removeUploads(files, dir) {
-  await Promise.all((files || []).map((file) => rm(join(dir, file.id), { force: true })));
+  const root = resolve(dir);
+  await Promise.all(
+    (files || []).map((file) => {
+      const disk = diskPath(root, file && file.id);
+      return disk ? rm(disk, { force: true }) : Promise.resolve();
+    }),
+  );
 }
 
 export function repoRoot() {
@@ -282,4 +299,60 @@ export function repoRoot() {
 export function outsideRepo(dir) {
   const rel = relative(REPO_ROOT, resolve(dir));
   return rel.startsWith(`..${sep}`) || rel === "..";
+}
+
+function formError() {
+  return Object.assign(new Error("form"), { code: 400, reason: "form" });
+}
+
+function sharedRoot(dir) {
+  const path = resolve(dir);
+  const banned = [resolve("/"), resolve("/tmp"), resolve("/var/tmp"), resolve("/dev/shm"), resolve(tmpdir())];
+  return banned.includes(path);
+}
+
+function diskPath(dir, id) {
+  if (!/^[a-f0-9]{32}$/.test(String(id || ""))) return null;
+  const root = resolve(dir);
+  const disk = join(root, id);
+  if (disk !== `${root}${sep}${id}`) return null;
+  return disk;
+}
+
+async function ancestor(path) {
+  let cursor = resolve(path);
+  for (;;) {
+    try {
+      await lstat(cursor);
+      return cursor;
+    } catch (err) {
+      if (err.code !== "ENOENT") throw err;
+      const parent = dirname(cursor);
+      if (parent === cursor) return null;
+      cursor = parent;
+    }
+  }
+}
+
+export async function prepareUploadDir(dir) {
+  const root = resolve(dir);
+  if (!root || sharedRoot(root) || !outsideRepo(root)) throw formError();
+  const found = await ancestor(root);
+  if (!found) throw formError();
+  const foundStat = await lstat(found);
+  if (foundStat.isSymbolicLink() || !foundStat.isDirectory()) throw formError();
+  if ((await realpath(found)) !== resolve(found)) throw formError();
+  if (found !== root) await mkdir(root, { recursive: true, mode: 0o700 });
+  const st = await lstat(root);
+  if (st.isSymbolicLink() || !st.isDirectory()) throw formError();
+  if (typeof process.getuid === "function" && st.uid !== process.getuid()) throw formError();
+  if ((await realpath(root)) !== root) throw formError();
+  if (basename(root) === "" || basename(root) === ".." || sharedRoot(root)) throw formError();
+  const fd = openSync(root, DIR_FLAGS);
+  try {
+    fchmodSync(fd, 0o700);
+  } finally {
+    closeSync(fd);
+  }
+  return root;
 }
