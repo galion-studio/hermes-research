@@ -544,6 +544,7 @@ test("phone and desktop stay within the viewport", async ({ page }) => {
   for (const viewport of [
     { width: 1440, height: 900 },
     { width: 390, height: 844 },
+    { width: 360, height: 740 },
   ]) {
     await page.setViewportSize(viewport);
     await page.goto("/research");
@@ -628,4 +629,82 @@ test("a dotfile handed from the desk reaches the turn", async ({ page }) => {
   await expect(page.locator("#reading-body")).toContainText("dotfile-marker");
   await expect(page.locator("#reading-list")).toContainText(".notes");
   await expect(page.locator("#citation-list li")).toHaveCount(0);
+});
+
+test.describe("send", () => {
+  test.use({ hasTouch: true });
+
+  test("Send stays disabled until the question has words", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 740 });
+    await page.goto("/research");
+    const send = page.getByRole("button", { name: "Send" });
+    await expect(send).toBeVisible();
+    await expect(send).toBeDisabled();
+    await expect(page.locator("#ask #send")).toHaveAttribute("type", "submit");
+    await expect(page.locator("#prompt")).toHaveAttribute("enterkeyhint", "send");
+    const bare = await send.boundingBox();
+    expect(bare.width).toBeGreaterThanOrEqual(44);
+    expect(bare.height).toBeGreaterThanOrEqual(44);
+    await page.locator("#prompt").fill("   ");
+    await expect(send).toBeDisabled();
+    await page.locator("#prompt").fill("Who are you?");
+    await expect(send).toBeEnabled();
+
+    await page.getByRole("button", { name: "Show interface" }).click();
+    await expect(page.locator("body")).not.toHaveAttribute("data-ui", "minimal");
+    await expect(send).toBeVisible();
+    await expect(send).toBeEnabled();
+    const open = await send.boundingBox();
+    expect(open.width).toBeGreaterThanOrEqual(44);
+    expect(open.height).toBeGreaterThanOrEqual(44);
+    const field = await page.locator(".field").boundingBox();
+    expect(open.x).toBeGreaterThan(field.x + field.width / 2);
+    expect(open.x + open.width).toBeLessThanOrEqual(field.x + field.width + 1);
+  });
+
+  test("a phone tap on Send asks from the bare field and the desk", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 740 });
+    await page.goto("/research");
+    await expect(page.locator("body")).toHaveAttribute("data-ui", "minimal");
+    await page.locator("#prompt").fill("Who are you?");
+    await page.getByRole("button", { name: "Send" }).tap();
+    await expect(page.locator("#reading-question")).toHaveText("Who are you?");
+    await expect(page.locator("body")).toHaveAttribute("data-state", "offline");
+
+    await page.goto("/research");
+    await page.getByRole("button", { name: "Show interface" }).click();
+    await page.locator("#prompt").fill("What is in hand?");
+    await page.getByRole("button", { name: "Send" }).tap();
+    await expect(page.locator("#reading-question")).toHaveText("What is in hand?");
+    await expect(page.locator("body")).toHaveAttribute("data-state", "offline");
+    await expect(page.locator("#reading-body")).toContainText("Offline");
+  });
+
+  test("Enter still sends, and Send waits while that question is in flight", async ({ page }) => {
+    let pending = 0;
+    let release;
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    await page.route("**/research/ask", async (route) => {
+      pending += 1;
+      if (pending === 1) await gate;
+      await route.continue();
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/research");
+    await page.locator("#prompt").fill("Who are you?");
+    const asked = page.waitForRequest("**/research/ask");
+    await page.locator("#prompt").press("Enter");
+    await asked;
+    await expect(page.locator("body")).toHaveAttribute("data-state", "loading");
+    await expect(page.getByRole("button", { name: "Send" })).toBeDisabled();
+    await page.locator("#prompt").press("Enter");
+    await page.getByRole("button", { name: "Send" }).click({ force: true });
+    expect(pending).toBe(1);
+    release();
+    await expect(page.locator("body")).toHaveAttribute("data-state", "offline");
+    await expect(page.locator("#reading-question")).toHaveText("Who are you?");
+    await expect(page.getByRole("button", { name: "Send" })).toBeEnabled();
+  });
 });
