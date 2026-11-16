@@ -15,20 +15,28 @@ export function stubHermes(script) {
         authorization: req.headers.authorization || "",
         body,
       });
-      const step = typeof script === "function" ? script({ url: req.url, body, calls }) : script;
-      if (!step || step.hang) return;
-      if (step.down) {
-        res.writeHead(step.status || 503, { "Content-Type": "text/plain; charset=utf-8" });
-        res.end("down");
-        return;
-      }
-      const content = step.content ?? "";
-      const payload = JSON.stringify({ choices: [{ message: { content } }] });
-      res.writeHead(step.status || 200, {
-        "Content-Type": "application/json",
-        "Content-Length": Buffer.byteLength(payload),
-      });
-      res.end(payload);
+      Promise.resolve()
+        .then(() => (typeof script === "function" ? script({ url: req.url, body, calls }) : script))
+        .then((step) => {
+          if (!step || step.hang) return;
+          if (step.down) {
+            res.writeHead(step.status || 503, { "Content-Type": "text/plain; charset=utf-8" });
+            res.end("down");
+            return;
+          }
+          const content = step.content ?? "";
+          const payload = JSON.stringify({ choices: [{ message: { content } }] });
+          res.writeHead(step.status || 200, {
+            "Content-Type": "application/json",
+            "Content-Length": Buffer.byteLength(payload),
+          });
+          res.end(payload);
+        })
+        .catch(() => {
+          if (res.writableEnded) return;
+          res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+          res.end("stub");
+        });
     });
   });
   return new Promise((resolve, reject) => {

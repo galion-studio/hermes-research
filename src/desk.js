@@ -2,6 +2,7 @@
 // Helpers are a single quiet line. The desk may split the work on its own.
 
 import { localKnowledge } from "./local.js";
+import { idleProgress, progressDocument } from "./progress.js";
 import {
   LLM_NAME,
   REFUSED,
@@ -103,7 +104,7 @@ export function createDesk(hermes, deps = {}) {
     const id = sessionId || "session";
     let session = sessions.get(id);
     if (!session) {
-      session = { notes: [], sources: [], status: "Idle", nextId: 0, at: Date.now() };
+      session = { notes: [], sources: [], status: "Idle", nextId: 0, at: Date.now(), flight: 0, live: idleProgress() };
       sessions.set(id, session);
       evict(id);
     }
@@ -207,6 +208,25 @@ export function createDesk(hermes, deps = {}) {
     };
   }
 
+  function beginProgress(sessionId) {
+    const session = open(sessionId);
+    session.flight += 1;
+    session.live = { phase: "reading", calls: 0, call_budget: 1, helpers: [] };
+    return session.flight;
+  }
+
+  function endProgress(sessionId, token, calls = 0) {
+    const session = open(sessionId);
+    if (token !== session.flight) return;
+    const spent = Number.isInteger(calls) && calls > 0 ? calls : 0;
+    session.live = { phase: "done", calls: spent, call_budget: 1, helpers: [] };
+  }
+
+  function progressBody(sessionId) {
+    const session = open(sessionId);
+    return progressDocument(session.live || idleProgress());
+  }
+
   function ask(question, sessionId, files) {
     const job = chain.then(() => run(question, sessionId, files));
     chain = job.then(
@@ -262,5 +282,5 @@ export function createDesk(hermes, deps = {}) {
     };
   }
 
-  return { ask, statusBody, historyBody, sourcesBody, runningLine: HELPERS_RUNNING };
+  return { ask, statusBody, historyBody, sourcesBody, beginProgress, endProgress, progressBody, runningLine: HELPERS_RUNNING };
 }

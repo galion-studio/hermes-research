@@ -73,6 +73,8 @@ The research turn uses the Galion Research system prompt from `galion-cascade` `
 
 While a question is in flight the page shows one line: `Helpers: reading, sources, notebook.` Research may split the work that way on its own. When the turn returns, the line goes quiet.
 
+`GET /research/progress` is that session's in-flight phase. The page shows it as one quiet line, `Reading.`, and hides the line when the turn returns. Another session does not see it.
+
 ### Offline
 
 If the galion-one-voice origin is down and Hermes does not answer, the desk continues from local knowledge and marks the answer `Offline`. The quiet line is `Helpers are quiet. Local knowledge carries the question.` The reply says `Offline` and `Local`. Citations stay empty. A local line is labelled `Local` in that session's sources. It is not a citation. What this process already knows is the voice, the price, the palette, and the connection to Galion One. It does not fill a gap with a made-up source.
