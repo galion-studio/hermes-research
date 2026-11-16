@@ -77,14 +77,18 @@ function offlineResult(question, key) {
 function finish(turn, question, key) {
   const leaked = Boolean(key) && (turn.text.includes(key) || turn.citations.some((cite) => cite.text.includes(key)));
   if (leaked || turn.text === UNREACHABLE) return offlineResult(question, key);
-  let status = researchState(turn.text);
-  let citations = status === "Returned" ? turn.citations.map((cite) => ({ n: cite.n, text: scrub(cite.text, key) })) : [];
-  citations = citations.filter((cite) => cite.text);
+  let citations = (turn.citations || []).map((cite) => ({ n: cite.n, text: scrub(cite.text, key) })).filter((cite) => cite.text);
+  const linked = citations.filter((cite) => sourceView(cite.text).href);
+  let status = linked.length ? "Returned" : researchState(turn.text);
+  if (status !== "Returned") citations = [];
   const piles = notebookPiles(scrub(turn.raw || turn.text, key));
   if ((status === "NotFound" || status === "Unreachable" || status === "Denied") && piles.unknown.length === 0) {
     piles.unknown.push(scrub(turn.text, key));
   }
   if (status !== "Returned") piles.found = [];
+  else if (piles.found.length === 0 && linked.length) {
+    piles.found = linked.map((cite) => sourceView(cite.text).title).filter(Boolean);
+  }
   return {
     status,
     reply: scrub(turn.text, key),
