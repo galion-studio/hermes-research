@@ -157,6 +157,9 @@ describe("headers, cookies, and the loopback bind", () => {
     delete env.GALION_LLM;
     delete env.GALION_LLM_URL;
     delete env.GALION_LLM_KEY;
+    delete env.GALION_LLM_KEY_FILE;
+    delete env.GALION_LLM_KEY_NAME;
+    delete env.CREDENTIALS_DIRECTORY;
     delete env.GALION_RESEARCH_URL;
     delete env.GALION_ASK_RATE;
     delete env.GALION_RATE_LIMIT;

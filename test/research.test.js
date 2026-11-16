@@ -517,10 +517,15 @@ describe("deploy kit", () => {
   it("keeps secrets out of the env examples and pins the unit to loopback", async () => {
     for (const name of [".env.example", "deploy/research.env.example"]) {
       const text = await readFile(path.join(ROOT, name), "utf8");
+      assert.match(text, /^# GALION_LLM_KEY_FILE=\s*$/m, name);
+      assert.match(text, /^# GALION_LLM_KEY_NAME=\s*$/m, name);
+      assert.match(text, /^# GALION_LLM_KEY=\s*$/m, name);
       for (const line of text.split("\n")) {
         const trimmed = line.trim();
         if (trimmed.startsWith("#")) continue;
-        assert.equal(/^GALION_LLM_KEY=.+$/.test(trimmed), false, `${name}: ${trimmed}`);
+        for (const key of ["GALION_LLM_KEY", "GALION_LLM_KEY_FILE", "GALION_LLM_KEY_NAME"]) {
+          assert.equal(new RegExp(`^${key}=.+$`).test(trimmed), false, `${name}: ${trimmed}`);
+        }
       }
     }
     const unit = await readFile(path.join(ROOT, "deploy/systemd/galion-research.service"), "utf8");
@@ -540,11 +545,30 @@ describe("deploy kit", () => {
       assert.ok(unit.includes(line), line);
     }
     assert.equal(unit.includes("GALION_LLM_KEY="), false);
+    assert.equal(unit.includes("GALION_LLM_KEY_FILE="), false);
+    assert.equal(unit.includes("GALION_LLM_KEY_NAME="), false);
+    assert.equal(unit.includes("LoadCredential="), false);
+    assert.equal(unit.includes("/opt/galion/hermes/.env"), false);
+    const piUnit = await readFile(path.join(ROOT, "deploy/systemd/galion-research-pi5.service"), "utf8");
+    assert.equal(piUnit.includes("LoadCredential="), false);
+    assert.equal(piUnit.includes("/opt/galion/hermes/.env"), false);
+    assert.equal(piUnit.includes("GALION_LLM_KEY="), false);
     const doc = await readFile(path.join(ROOT, "docs/DEPLOY.md"), "utf8");
     assert.match(doc, /release\/<sha>/);
     assert.match(doc, /\/opt\/galion\/research\/current/);
     assert.match(doc, /rollback/i);
     assert.match(doc, /127\.0\.0\.1:8787/);
+    assert.match(doc, /GALION_LLM_KEY_FILE/);
+    assert.match(doc, /GALION_LLM_KEY_NAME/);
+    assert.match(doc, /LoadCredential=hermes-env:\/opt\/galion\/hermes\/\.env/);
+    assert.match(doc, /Environment=GALION_LLM_KEY_FILE=hermes-env/);
+    assert.match(doc, /Environment=GALION_LLM_KEY_NAME=API_SERVER_KEY/);
+    const readme = await readFile(path.join(ROOT, "README.md"), "utf8");
+    assert.match(readme, /GALION_LLM_KEY_FILE/);
+    assert.match(readme, /GALION_LLM_KEY_NAME/);
+    assert.match(readme, /LoadCredential=hermes-env:\/opt\/galion\/hermes\/\.env/);
+    assert.match(readme, /Environment=GALION_LLM_KEY_FILE=hermes-env/);
+    assert.match(readme, /Environment=GALION_LLM_KEY_NAME=API_SERVER_KEY/);
   });
 
   it("refuses to execute the health check or the release dry-run", async () => {

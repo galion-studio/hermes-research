@@ -1,6 +1,7 @@
 # Galion Research desk. Loopback only.
 # src/server.js binds 127.0.0.1. This unit pins PORT=8787, so the listener is 127.0.0.1:8787.
 # The key is not set here. A human puts it in /etc/galion/research.env on the host.
+# Do not add the key, a credential path, or a credential directive to this file. See docs/DEPLOY.md.
 # MemoryMax is the 256M ceiling named for the galion-voice unit draft. It is a cap, not a measured size.
 [Unit]
 Description=Galion Research desk (loopback 127.0.0.1:8787)

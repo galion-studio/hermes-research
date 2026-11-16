@@ -54,8 +54,20 @@ When `GALION_RESEARCH_URL` is unset, or that origin cannot be reached, Hermes is
 | `GALION_LLM` | `hermes` to attach. `canned`, `echo`, and `mock` stay off this client. |
 | `GALION_LLM_URL` | Loopback `http://127.0.0.1:8642/v1/chat/completions` when unset. Other hosts are refused, so the key is not sent off the machine. A set URL with no mode also attaches, same as galion-one-voice. |
 | `GALION_LLM_MODEL` | Default `hermes-agent`. |
-| `GALION_LLM_KEY` | Optional bearer token. Server-side only. |
+| `GALION_LLM_KEY_FILE` | Optional dotenv file. A name with no `/`, no `\`, and no `..` is read from `$CREDENTIALS_DIRECTORY` when that directory is an absolute path (systemd `LoadCredential=`). An absolute path is read as given. A relative path is ignored. |
+| `GALION_LLM_KEY_NAME` | Line name in that file, such as `API_SERVER_KEY`. Both file and name must be set. A non-empty value wins over `GALION_LLM_KEY`. |
+| `GALION_LLM_KEY` | Fallback bearer token when the file is unset, unreadable, or has no matching line. Server-side only. Commented and empty in the examples. |
 | `GALION_LLM_TIMEOUT_MS` | Default 3000, clamped between 50 and 95000. The live voice desk uses 85000. |
+
+A host drop-in can hand the gateway file to the unit. The committed unit does not set the key, a live path, or `LoadCredential`.
+
+```
+LoadCredential=hermes-env:/opt/galion/hermes/.env
+Environment=GALION_LLM_KEY_FILE=hermes-env
+Environment=GALION_LLM_KEY_NAME=API_SERVER_KEY
+```
+
+`hermes-env` is the credential name. `API_SERVER_KEY` is the line in `/opt/galion/hermes/.env` on the host. That path is not in the committed unit.
 
 The research turn uses the Galion Research system prompt from `galion-cascade` `research_turn`. Citation lines are the `[n]` lines the model actually returned. If there is no source, the reply says so and the citation list stays empty. This desk does not invent a paper, a URL, a date, or a measurement.
 
