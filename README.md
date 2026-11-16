@@ -75,6 +75,8 @@ While a question is in flight the page shows one line: `Helpers: reading, source
 
 `GET /research/progress` is that session's in-flight phase. The page shows it as one quiet line, `Reading.`, and hides the line when the turn returns. Another session does not see it.
 
+Sources are one list: the title, the domain, and the link. A link is shown only when the citation already carried an `http` or `https` URL. The desk does not invent one.
+
 ### Offline
 
 If the galion-one-voice origin is down and Hermes does not answer, the desk continues from local knowledge and marks the answer `Offline`. The quiet line is `Helpers are quiet. Local knowledge carries the question.` The reply says `Offline` and `Local`. Citations stay empty. A local line is labelled `Local` in that session's sources. It is not a citation. What this process already knows is the voice, the price, the palette, and the connection to Galion One. It does not fill a gap with a made-up source.

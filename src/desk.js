@@ -3,6 +3,7 @@
 
 import { localKnowledge } from "./local.js";
 import { idleProgress, progressDocument } from "./progress.js";
+import { sourceView } from "./source-list.js";
 import {
   LLM_NAME,
   REFUSED,
@@ -168,20 +169,25 @@ export function createDesk(hermes, deps = {}) {
     return session.sources.map((source) => ({ ...source }));
   }
 
+  function listed(source) {
+    const view = sourceView(source.text || "");
+    return { ...source, title: view.title, domain: view.domain, href: view.href };
+  }
+
   function rememberSources(session, note) {
     if (note.status === "Offline") {
       if (!session.sources.some((source) => source.label === "Local")) {
-        session.sources.push({ label: "Local", text: LOCAL_SOURCE, questionId: note.id });
+        session.sources.push(listed({ label: "Local", text: LOCAL_SOURCE, questionId: note.id }));
       }
     } else if (note.status === "Returned") {
       for (const cite of note.citations) {
         if (!cite.text || session.sources.length >= SOURCE_CAP) continue;
-        session.sources.push({ label: "Citation", n: cite.n, text: cite.text, questionId: note.id });
+        session.sources.push(listed({ label: "Citation", n: cite.n, text: cite.text, questionId: note.id }));
       }
     }
     for (const source of note.handed || []) {
       if (!source.text || session.sources.length >= SOURCE_CAP) continue;
-      session.sources.push({ label: "File", text: source.text, questionId: note.id });
+      session.sources.push(listed({ label: "File", text: source.text, questionId: note.id }));
     }
     while (session.sources.length > SOURCE_CAP) session.sources.shift();
   }
