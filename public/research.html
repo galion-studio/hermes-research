@@ -177,6 +177,13 @@ body[data-ui="minimal"] #loading,
 body[data-ui="minimal"] #error{margin:0}
 body[data-state="error"] .field{outline:2px solid var(--ice);outline-offset:3px}
 body[data-state="loading"] .field{outline:2px solid var(--focus);outline-offset:3px}
+#first-run{width:min(36rem,100%);margin:0;text-align:center}
+#first-run .kicker{margin:0 0 14px;font:12px/1 var(--om-font-mono);letter-spacing:.16em;text-transform:uppercase;color:var(--quiet)}
+#first-run h1{margin:0;font:500 clamp(32px,4.2vw,52px)/1.12 var(--om-font-display);letter-spacing:-.03em}
+#first-run-line{margin:16px 0 0;font:17px/1.5 var(--om-font-sans);color:var(--quiet)}
+body:not([data-ui="minimal"]) #first-run,
+body:not([data-state="empty"]) #first-run,
+body[data-ui="minimal"][data-state="empty"] #state-line{display:none}
 body[data-theme="ice"]{
   --panel:color-mix(in srgb, var(--ground) 94%, var(--ice));
   background:
@@ -249,6 +256,11 @@ body[data-theme="ocean"]{
   </section>
 </aside>
 <main class="stage">
+  <header id="first-run">
+    <p class="kicker">Galion Research</p>
+    <h1>What are we looking into?</h1>
+    <p id="first-run-line">A question starts here.</p>
+  </header>
   <p id="state-line" data-app="hermes">Hermes</p>
   <p class="sr" id="product-line">Galion Research is the Hermes research app, a voice of Galion One. Voice to voice is on.</p>
   <p class="sr" id="research-voice">Galion Research. What are we looking into?</p>
