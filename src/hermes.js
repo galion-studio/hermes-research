@@ -1,8 +1,14 @@
 // Hermes research turn. Loopback OpenAI-compatible chat only.
-// GALION_LLM_KEY is read from the environment and sent as Authorization.
-// It is never copied into a reply, a status line, or a log.
+// The gateway key is one dotenv line (GALION_LLM_KEY_FILE + GALION_LLM_KEY_NAME),
+// then GALION_LLM_KEY. It is sent as Authorization.
+// It is never copied into a reply, a status line, a log, or inspect output.
 
+import { readFileSync, statSync } from "node:fs";
 import http from "node:http";
+import path from "node:path";
+import { inspect } from "node:util";
+
+const KEY_FILE_MAX = 64 * 1024;
 
 export const UNREACHABLE = "model can't be reached";
 export const REFUSED = "I'll stay on what you said.";
@@ -260,7 +266,89 @@ function assistantContent(payload) {
   return typeof content === "string" ? content : null;
 }
 
-export function configFromEnv(env = process.env) {
+// At most 64 KiB. A missing path, a permission error, a non-file, or a larger
+// file is an empty read. This never throws and never logs the bytes.
+export function readKeyFile(filePath) {
+  if (typeof filePath !== "string" || filePath.length === 0) return "";
+  try {
+    const stat = statSync(filePath);
+    if (!stat.isFile() || stat.size > KEY_FILE_MAX) return "";
+    return readFileSync(filePath, "utf8");
+  } catch {
+    return "";
+  }
+}
+
+// First NAME=value wins. Empty lines and # comments are skipped. `export ` is
+// optional. One matching quote pair is removed. An empty value is a miss.
+// Other lines stay in the file; they are not copied into the environment.
+function dotenvValue(text, name) {
+  const wanted = String(name);
+  for (const line of String(text).split(/\r?\n/)) {
+    let trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    if (trimmed.startsWith("export ")) trimmed = trimmed.slice("export ".length);
+    const eq = trimmed.indexOf("=");
+    if (eq < 0) continue;
+    if (trimmed.slice(0, eq).trim() !== wanted) continue;
+    return unquote(trimmed.slice(eq + 1));
+  }
+  return "";
+}
+
+function unquote(value) {
+  const trimmed = value.trim();
+  if (trimmed.length >= 2) {
+    const first = trimmed[0];
+    const last = trimmed[trimmed.length - 1];
+    if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+      return trimmed.slice(1, -1).trim();
+    }
+  }
+  return trimmed;
+}
+
+// A bare name is $CREDENTIALS_DIRECTORY/$file (systemd LoadCredential).
+// An absolute path is read as given. A relative path is not searched.
+function resolvedKeyPath(file, env) {
+  const bare = !file.includes("/") && !file.includes("\\") && !file.includes("..");
+  if (bare) {
+    const directory = String(env.CREDENTIALS_DIRECTORY ?? "").trim();
+    if (directory && path.isAbsolute(directory)) return path.join(directory, file);
+    return "";
+  }
+  if (path.isAbsolute(file)) return file;
+  return "";
+}
+
+function readKeyText(readFile, filePath) {
+  try {
+    const text = readFile(filePath);
+    if (typeof text === "string") return text;
+    if (Buffer.isBuffer(text)) return text.toString("utf8");
+    return "";
+  } catch {
+    return "";
+  }
+}
+
+function gatewayKey(env, readFile) {
+  const fallback = String(env.GALION_LLM_KEY ?? "").trim();
+  const file = String(env.GALION_LLM_KEY_FILE ?? "").trim();
+  const name = String(env.GALION_LLM_KEY_NAME ?? "").trim();
+  if (!file || !name) return fallback;
+  try {
+    const resolved = resolvedKeyPath(file, env);
+    if (!resolved) return fallback;
+    const value = dotenvValue(readKeyText(readFile, resolved), name);
+    if (value) return value;
+  } catch {
+    // Path resolution failed closed. The fallback is the env key. Nothing is logged.
+  }
+  return fallback;
+}
+
+export function configFromEnv(env = process.env, readFile = readKeyFile) {
   const mode = String(env.GALION_LLM || "").trim().toLowerCase();
   const url = String(env.GALION_LLM_URL || "").trim();
   const attach =
@@ -270,11 +358,19 @@ export function configFromEnv(env = process.env) {
         ? false
         : false;
   const timeout = Number(env.GALION_LLM_TIMEOUT_MS);
-  return {
+  const config = {
     attached: attach,
     url: url || DEFAULT_URL,
     model: String(env.GALION_LLM_MODEL || LLM_NAME).trim().slice(0, 64) || LLM_NAME,
-    key: String(env.GALION_LLM_KEY || "").trim(),
+    key: gatewayKey(env, readFile),
     timeoutMs: Number.isFinite(timeout) ? Math.min(MAX_TIMEOUT_MS, Math.max(50, timeout)) : DEFAULT_TIMEOUT_MS,
   };
+  Object.defineProperty(config, inspect.custom, {
+    enumerable: false,
+    value(_depth, options, inspectFn) {
+      const view = { ...config, key: keyState(config.key) };
+      return inspectFn(view, { ...options, customInspect: false });
+    },
+  });
+  return config;
 }
