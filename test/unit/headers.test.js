@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { contentSecurityPolicy, securityHeaders, withNonce } from "../../src/headers.js";
+import { contentSecurityPolicy, postOriginAllowed, securityHeaders, withNonce } from "../../src/headers.js";
 import { BIND_HOST, DEFAULT_PORT, listenTarget, newSessionId, sessionCookie, sessionToken } from "../../src/server.js";
 
 describe("response headers", () => {
@@ -27,6 +27,21 @@ describe("response headers", () => {
     assert.match(html, new RegExp(`<style nonce="${nonce}">`));
     assert.match(html, new RegExp(`<script nonce="${nonce}">`));
     assert.throws(() => withNonce("<script></script>", "bad nonce"), /nonce/);
+  });
+});
+
+describe("post origin", () => {
+  it("allows this desk and refuses another site", () => {
+    assert.equal(postOriginAllowed({}), true);
+    assert.equal(postOriginAllowed({ host: "127.0.0.1:8787", origin: "http://127.0.0.1:8787" }), true);
+    assert.equal(postOriginAllowed({ host: "127.0.0.1:8787", origin: "https://galion.app" }), true);
+    assert.equal(postOriginAllowed({ host: "galion.app", origin: "https://www.galion.app" }), true);
+    assert.equal(postOriginAllowed({ host: "127.0.0.1:8787", origin: "http://127.0.0.1:9999" }), false);
+    assert.equal(postOriginAllowed({ host: "galion.app", origin: "https://evil.example" }), false);
+    assert.equal(postOriginAllowed({ host: "galion.app", origin: "null" }), false);
+    assert.equal(postOriginAllowed({ host: "galion.app", origin: "http://galion.app" }), false);
+    assert.equal(postOriginAllowed({ "sec-fetch-site": "cross-site" }), false);
+    assert.equal(postOriginAllowed({ host: "127.0.0.1:8787", origin: "http://user:pass@127.0.0.1:8787" }), false);
   });
 });
 

@@ -19,7 +19,7 @@ import {
   wireReport,
   withWireIndicator,
 } from "./forward.js";
-import { newNonce, securityHeaders, withNonce } from "./headers.js";
+import { newNonce, postOriginAllowed, securityHeaders, withNonce } from "./headers.js";
 import { localKnowledge } from "./local.js";
 import { LLM_NAME, configFromEnv, isLoopback, keyState } from "./hermes.js";
 import {
@@ -31,6 +31,7 @@ import {
   NOT_FOUND,
   QUESTION_LIMIT,
   QUESTION_TOO_LONG,
+  ORIGIN_REFUSED,
   RATE_LIMITED,
   UPSTREAM_REFUSED,
   createRateLimiter,
@@ -269,6 +270,11 @@ export function createApp(env = process.env) {
         ...healthReadHeaders(req.headers.origin),
       });
       req.resume();
+      return;
+    }
+
+    if ((method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE") && !postOriginAllowed(req.headers)) {
+      fail(403, "origin", ORIGIN_REFUSED);
       return;
     }
 
