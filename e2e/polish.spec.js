@@ -40,7 +40,7 @@ async function openDesk(page, viewport) {
 test("controls are at least 44px on a phone and on the desktop", async ({ page }) => {
   for (const viewport of viewports) {
     await openDesk(page, viewport);
-    const selectors = ["#add-file", "#add-image", "#silence", "#ui-toggle", "#voice", "#to-one", "#allow-experiment"];
+    const selectors = ["#add-file", "#add-image", "#silence", "#ui-toggle", "#send", "#voice", "#to-one", "#allow-experiment"];
     for (const selector of selectors) {
       const box = await page.locator(selector).boundingBox();
       expect(box, selector).toBeTruthy();
@@ -69,6 +69,7 @@ test("keyboard focus rings stay Sky, 2px, and inside the phone width", async ({ 
   ]) {
     await openDesk(page, viewport);
     const controls = ["#add-file", "#add-image", "#silence", "#ui-toggle", "#voice", "#to-one", "#allow-experiment", "#prompt"];
+    await page.locator("#prompt").fill("a");
     for (const selector of controls) {
       const ring = await page.locator(selector).evaluate((el) => {
         const target = el.id === "prompt" ? el.closest(".field") : el;
@@ -99,6 +100,28 @@ test("keyboard focus rings stay Sky, 2px, and inside the phone width", async ({ 
       expect(ground, ring.field).not.toBeNull();
       expect(contrast(ink, ground), selector).toBeGreaterThanOrEqual(3);
     }
+    const send = await page.locator("#send").evaluate((el) => {
+      el.focus({ focusVisible: true });
+      const style = getComputedStyle(el);
+      const box = el.getBoundingClientRect();
+      const width = Number.parseFloat(style.outlineWidth);
+      const offset = Number.parseFloat(style.outlineOffset);
+      return {
+        style: style.outlineStyle,
+        width,
+        offset,
+        disabled: el.disabled,
+        left: box.left - offset - width,
+        right: box.right + offset + width,
+        viewport: window.innerWidth,
+      };
+    });
+    expect(send.disabled).toBe(false);
+    expect(send.style).toBe("solid");
+    expect(send.width).toBeGreaterThanOrEqual(2);
+    expect(send.offset).toBeGreaterThanOrEqual(3);
+    expect(send.left).toBeGreaterThanOrEqual(-1);
+    expect(send.right).toBeLessThanOrEqual(send.viewport + 1);
     await page.locator("#silence").evaluate((el) => el.focus({ focusVisible: true }));
     await page.locator("#silence").click();
     const pressed = await page.locator("#silence").evaluate((el) => {
