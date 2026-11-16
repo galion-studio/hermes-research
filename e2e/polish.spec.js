@@ -144,3 +144,93 @@ test("Ink, Ice, Sky, and Ocean keep control edges readable", async ({ page }) =>
     expect(serious).toEqual([]);
   }
 });
+
+const tinyPng = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64",
+);
+
+test("handed files and images stay visible, named, and unlimited", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto("/research");
+  await page.getByRole("button", { name: "Show interface" }).click();
+  await expect(page.locator("#files")).not.toHaveAttribute("accept");
+  await expect(page.locator("#source-empty")).toHaveAttribute("aria-label", "Local is empty");
+  await expect(page.locator("#reading-empty")).toHaveAttribute("aria-label", "Reading is empty");
+  await expect(page.locator("#arriving-empty")).toHaveAttribute("aria-label", "Arriving is empty");
+  await expect(page.locator("#local-list")).toHaveAttribute("aria-label", "Local");
+  await expect(page.locator("#reading-list")).toHaveAttribute("aria-label", "Reading");
+  await expect(page.locator("#arriving-list")).toHaveAttribute("aria-label", "Arriving");
+  await expect(page.locator("#citation-list")).toHaveAttribute("aria-label", "Citations");
+  await expect(page.locator("#citation-empty")).toHaveAttribute("aria-label", "Citations are empty");
+  await expect(page.locator("#state-line")).toHaveAttribute("role", "status");
+  await expect(page.locator("#prompt")).toHaveAttribute("aria-describedby", /file-note/);
+
+  await page.locator("#files").setInputFiles([
+    { name: ".notes", mimeType: "application/octet-stream", buffer: Buffer.from("dotfile-marker\n") },
+    { name: "shot.png", mimeType: "image/png", buffer: tinyPng },
+    {
+      name: "archive.bin",
+      mimeType: "application/x-custom",
+      buffer: Buffer.alloc(64 * 1024, 7),
+    },
+  ]);
+  await expect(page.locator("#file-names")).toHaveText(".notes, shot.png, archive.bin");
+  await expect(page.locator("#file-note")).toHaveText("Handed 3 files.");
+  await expect(page.getByRole("button", { name: "Remove files" })).toBeVisible();
+  const clearBox = await page.getByRole("button", { name: "Remove files" }).boundingBox();
+  expect(clearBox.width).toBeGreaterThanOrEqual(44);
+  expect(clearBox.height).toBeGreaterThanOrEqual(44);
+  const preview = page.locator("#file-preview");
+  await expect(preview).toBeVisible();
+  await expect(preview).toHaveAttribute("alt", "Preview of shot.png");
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  const withFiles = await new AxeBuilder({ page }).analyze();
+  expect(withFiles.violations.filter((row) => row.impact === "serious" || row.impact === "critical")).toEqual([]);
+
+  await page.getByRole("button", { name: "Remove files" }).click();
+  await expect(page.locator("#handed")).toBeHidden();
+  await expect(page.locator("#file-note")).toBeHidden();
+
+  await page.locator("#files").setInputFiles({
+    name: ".env",
+    mimeType: "application/octet-stream",
+    buffer: Buffer.from("not-a-secret\n"),
+  });
+  await expect(page.locator("#file-names")).toHaveText(".env");
+  await expect(page.locator("#file-note")).toHaveText("Handed 1 file.");
+  await expect(page.locator("#file-preview")).toBeHidden();
+  await page.locator("#prompt").fill("What is in the file?");
+  await page.locator("#prompt").press("Enter");
+  await expect(page.locator("#file-note")).toHaveText("Handed 1 file.");
+  await expect(page.locator("#file-names")).toHaveText(".env");
+  await expect(page.locator("#reading-body")).toContainText(".env");
+  await expect(page.locator("#reading-body")).toContainText("not-a-secret");
+});
+
+test("a file stays named while the question is in flight", async ({ page }) => {
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/research/ask", async (route) => {
+    await gate;
+    await route.continue();
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/research");
+  await page.locator("#files").setInputFiles({
+    name: "field-note.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("hello from the phone\n"),
+  });
+  await page.locator("#prompt").fill("Read the note");
+  await page.locator("#prompt").press("Enter");
+  await expect(page.locator("#file-note")).toHaveText("Sending 1 file.");
+  await expect(page.locator("#file-names")).toHaveText("field-note.txt");
+  await expect(page.locator("body")).toHaveAttribute("data-state", "loading");
+  release();
+  await expect(page.locator("#file-note")).toHaveText("Handed 1 file.");
+  await expect(page.locator("#reading-body")).toContainText("field-note.txt");
+});
