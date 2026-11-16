@@ -1,0 +1,55 @@
+name: pi-seed
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.23.4"
+
+      - name: qemu-user and the arm64 libraries the official node binary needs
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-user-static gcc-aarch64-linux-gnu
+
+      - name: build the linux-arm64 and linux-x64 single executables
+        run: node scripts/pi-seed/build.js
+
+      - name: smoke-start linux-x64 and check /health
+        run: node scripts/pi-seed/smoke.js build/pi-seed/out/galion-research-linux-x64
+
+      - name: smoke-start linux-arm64 under qemu-user and check /health
+        run: node scripts/pi-seed/smoke.js build/pi-seed/out/galion-research-linux-arm64 --qemu qemu-aarch64-static --sysroot /usr/aarch64-linux-gnu
+
+      - name: pack research-pi5-seed archive
+        id: pack
+        run: |
+          node scripts/pi-seed/pack.js
+          sha=$(git rev-parse HEAD)
+          archive="build/pi-seed/research-pi5-seed-${sha}.tar.gz"
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "file=${archive}" >> "$GITHUB_OUTPUT"
+          echo "archive bytes $(wc -c < "$archive")"
+          wc -c build/pi-seed/out/galion-research-linux-arm64 build/pi-seed/out/galion-research-linux-x64 "$archive"
+
+      # Owner decision: this upload has no file-type filter and no size cap.
+      # compression-level 0 skips a second compression of the gzip. It is not a cap.
+      - name: upload the seed archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-pi5-seed-${{ steps.pack.outputs.sha }}.tar.gz
+          path: ${{ steps.pack.outputs.file }}
+          if-no-files-found: error
+          compression-level: 0
