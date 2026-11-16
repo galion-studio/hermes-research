@@ -408,4 +408,38 @@ describe("forward contract against local stubs", () => {
       await closed(hermes);
     }
   });
+
+  it("does not forward a key that arrives as a JSON unicode escape", async () => {
+    const encoded = [...KEY].map((ch) => `\\u${ch.charCodeAt(0).toString(16).padStart(4, "0")}`).join("");
+    const body = `{"schema":"galion-research/1","status":"Returned","reply":"See the note.","citations":[],"note":"${encoded}"}`;
+    assert.equal(body.includes(KEY), false);
+    const voice = await listen((req, res) => {
+      if (req.url === "/health") {
+        res.writeHead(200, { "Content-Type": "text/plain" });
+        res.end("ok");
+        return;
+      }
+      req.resume();
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(body);
+    });
+    try {
+      const port = voice.address().port;
+      await withServer({ GALION_VOICE_URL: `http://127.0.0.1:${port}`, GALION_LLM_KEY: KEY }, async (base) => {
+        const response = await fetch(`${base}/research/ask`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: "Who are you?" }),
+        });
+        const text = await response.text();
+        assert.equal(text.includes(KEY), false);
+        const asked = JSON.parse(text);
+        assert.equal(asked.status, "Offline");
+        assert.equal(asked.note, undefined);
+        assert.deepEqual(asked.citations, []);
+      });
+    } finally {
+      await closed(voice);
+    }
+  });
 });
