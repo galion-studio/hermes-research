@@ -30,7 +30,7 @@ SOFTWARE.
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#0B0F14">
 <meta name="color-scheme" content="dark">
 <title>Galion Research</title>
@@ -192,6 +192,16 @@ body[data-state="loading"] .field{outline:2px solid var(--focus);outline-offset:
 body:not([data-ui="minimal"]) #first-run,
 body:not([data-state="empty"]) #first-run,
 body[data-ui="minimal"][data-state="empty"] #state-line{display:none}
+body[data-ui="minimal"][data-state="offline"] #work,
+body[data-ui="minimal"][data-state="ready"] #work{display:block;width:100%;margin:0}
+body[data-ui="minimal"] #sources,
+body[data-ui="minimal"] #citations,
+body[data-ui="minimal"] #notebook,
+body[data-ui="minimal"] #experiments{display:none}
+body[data-ui="minimal"] #answer{border:0;background:transparent;padding:0}
+body[data-ui="minimal"] #answer h2{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);clip-path:inset(50%);border:0}
+body[data-ui="minimal"] #reading{min-height:0;max-width:100%}
+body[data-ui="minimal"] #reading p{font:17px/1.5 var(--om-font-sans)}
 body[data-theme="ice"]{
   --panel:color-mix(in srgb, var(--ground) 94%, var(--ice));
   background:
@@ -228,10 +238,19 @@ body[data-theme="ocean"]{
   .voice{align-self:center}
   .app{grid-template-columns:1fr}
   #rail{border-right:0;border-bottom:1px solid var(--line)}
-  .stage{width:min(880px,calc(100% - 32px));padding:24px 0 48px}
+  .stage{width:min(880px,calc(100% - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));padding:max(24px, env(safe-area-inset-top, 0px)) 0 max(48px, env(safe-area-inset-bottom, 0px))}
   .piles,.book{grid-template-columns:1fr}
   .work{grid-template-columns:1fr}
-  body[data-ui="minimal"] .stage{width:min(880px,calc(100vw - 32px))}
+  body[data-ui="minimal"] .stage{
+    width:min(880px,calc(100% - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+    box-sizing:border-box;
+    min-height:100dvh;
+    min-height:100svh;
+    min-height:var(--vv-height, 100dvh);
+    justify-content:center;
+    justify-content:safe center;
+    padding:env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px)}
+  body[data-ui="minimal"] .field{position:sticky;top:calc(env(safe-area-inset-top, 0px) + var(--vv-offset, 0px));z-index:2}
 }
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation-duration:0.01ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important;scroll-behavior:auto !important}
@@ -472,18 +491,42 @@ function tone(id){
     var flying=document.body.getAttribute("data-state")==="loading";
     sendBtn.disabled=flying||!questionText();
   }
+  var placing=false;
+  function keepAskInView(){
+    if(placing||!window.matchMedia("(max-width: 800px)").matches) return;
+    var vv=window.visualViewport;
+    var top=vv?vv.offsetTop:0;
+    var height=vv?vv.height:window.innerHeight;
+    document.documentElement.style.setProperty("--vv-offset", Math.round(top)+"px");
+    document.documentElement.style.setProperty("--vv-height", Math.round(height)+"px");
+    var field=document.querySelector(".field");
+    if(!field) return;
+    var box=field.getBoundingClientRect();
+    var limitTop=top+8;
+    var limitBottom=top+height-8;
+    if(box.top>=limitTop&&box.bottom<=limitBottom) return;
+    placing=true;
+    field.scrollIntoView({block:"nearest",inline:"nearest"});
+    setTimeout(function(){ placing=false; }, 60);
+  }
+  function settleAsk(){
+    keepAskInView();
+    requestAnimationFrame(keepAskInView);
+  }
   function setBusy(on){
     if(on){
       document.body.setAttribute("data-state","loading");
       answerEl.setAttribute("aria-busy","true");
       loadingEl.hidden=false;
       syncSend();
+      settleAsk();
       return;
     }
     answerEl.removeAttribute("aria-busy");
     loadingEl.hidden=true;
     if(document.body.getAttribute("data-state")==="loading") document.body.removeAttribute("data-state");
     syncSend();
+    settleAsk();
   }
   function clearInvalid(){
     prompt.removeAttribute("aria-invalid");
@@ -520,6 +563,7 @@ function tone(id){
     fillPile("found", []);
     fillPile("inferred", []);
     fillPile("unknown", []);
+    settleAsk();
   }
   function carryOffline(q){
     clearError();
@@ -542,6 +586,7 @@ function tone(id){
     fillPile("unknown", [OFFLINE]);
     paintHistory([{status:"Offline", question:q}]);
     tone("local");
+    settleAsk();
   }
   function isOffline(j){
     return j.status==="Offline"||j.status==="Unreachable"||j.status==="Local";
@@ -587,6 +632,7 @@ function tone(id){
     helpers.hidden=false;
     helpers.textContent=offline?"Helpers are quiet. Local knowledge carries the question.":(j.helpers||"Helpers are quiet.");
     tone(offline?"local":"returned");
+    settleAsk();
   }
   function fillPile(id, rows){
     var list=document.getElementById(id+"-list");
@@ -719,6 +765,11 @@ function tone(id){
       .catch(function(){ carryOffline(q); });
   }
   prompt.addEventListener("input", syncSend);
+  prompt.addEventListener("focus", settleAsk);
+  window.addEventListener("resize", settleAsk);
+  if(window.visualViewport){
+    visualViewport.addEventListener("resize", settleAsk);
+  }
   prompt.addEventListener("keydown", function(ev){
     if(ev.key!=="Enter"||ev.shiftKey||ev.isComposing) return;
     ev.preventDefault();
