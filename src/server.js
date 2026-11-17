@@ -39,7 +39,7 @@ import {
   questionLength,
   rateLimitsFromEnv,
 } from "./limits.js";
-import { UPLOAD_FORM, UPLOAD_NAME, parseMultipart, removeUploads, uploadDir } from "./uploads.js";
+import { UPLOAD_FORM, UPLOAD_NAME, parseMultipart, readHanded, removeUploads, uploadDir } from "./uploads.js";
 
 export { BODY_LIMIT, QUESTION_LIMIT };
 
@@ -382,7 +382,9 @@ export function createApp(env = process.env) {
         return;
       }
       const body = await whileAsking(async (mark) => {
-        const asked = await desk.ask(question, sessionId, parsed.files);
+        // The desk reads its own private upload back by random id. Hermes gets text, never a path.
+        const handed = hermes.attached ? await readHanded(parsed.files, dir) : parsed.files;
+        const asked = await desk.ask(question, sessionId, handed);
         if (asked && asked.status === "Returned") mark.calls = 1;
         return asked;
       });
