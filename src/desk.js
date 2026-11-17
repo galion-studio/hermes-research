@@ -3,6 +3,7 @@
 
 import { localKnowledge } from "./local.js";
 import { idleProgress, progressDocument } from "./progress.js";
+import { sourceView } from "./source-list.js";
 import {
   LLM_NAME,
   REFUSED,
@@ -76,14 +77,18 @@ function offlineResult(question, key) {
 function finish(turn, question, key) {
   const leaked = Boolean(key) && (turn.text.includes(key) || turn.citations.some((cite) => cite.text.includes(key)));
   if (leaked || turn.text === UNREACHABLE) return offlineResult(question, key);
-  let status = researchState(turn.text);
-  let citations = status === "Returned" ? turn.citations.map((cite) => ({ n: cite.n, text: scrub(cite.text, key) })) : [];
-  citations = citations.filter((cite) => cite.text);
+  let citations = (turn.citations || []).map((cite) => ({ n: cite.n, text: scrub(cite.text, key) })).filter((cite) => cite.text);
+  const linked = citations.filter((cite) => sourceView(cite.text).href);
+  let status = linked.length ? "Returned" : researchState(turn.text);
+  if (status !== "Returned") citations = [];
   const piles = notebookPiles(scrub(turn.raw || turn.text, key));
   if ((status === "NotFound" || status === "Unreachable" || status === "Denied") && piles.unknown.length === 0) {
     piles.unknown.push(scrub(turn.text, key));
   }
   if (status !== "Returned") piles.found = [];
+  else if (piles.found.length === 0 && linked.length) {
+    piles.found = linked.map((cite) => sourceView(cite.text).title).filter(Boolean);
+  }
   return {
     status,
     reply: scrub(turn.text, key),
@@ -168,20 +173,25 @@ export function createDesk(hermes, deps = {}) {
     return session.sources.map((source) => ({ ...source }));
   }
 
+  function listed(source) {
+    const view = sourceView(source.text || "");
+    return { ...source, title: view.title, domain: view.domain, href: view.href };
+  }
+
   function rememberSources(session, note) {
     if (note.status === "Offline") {
       if (!session.sources.some((source) => source.label === "Local")) {
-        session.sources.push({ label: "Local", text: LOCAL_SOURCE, questionId: note.id });
+        session.sources.push(listed({ label: "Local", text: LOCAL_SOURCE, questionId: note.id }));
       }
     } else if (note.status === "Returned") {
       for (const cite of note.citations) {
         if (!cite.text || session.sources.length >= SOURCE_CAP) continue;
-        session.sources.push({ label: "Citation", n: cite.n, text: cite.text, questionId: note.id });
+        session.sources.push(listed({ label: "Citation", n: cite.n, text: cite.text, questionId: note.id }));
       }
     }
     for (const source of note.handed || []) {
       if (!source.text || session.sources.length >= SOURCE_CAP) continue;
-      session.sources.push({ label: "File", text: source.text, questionId: note.id });
+      session.sources.push(listed({ label: "File", text: source.text, questionId: note.id }));
     }
     while (session.sources.length > SOURCE_CAP) session.sources.shift();
   }
