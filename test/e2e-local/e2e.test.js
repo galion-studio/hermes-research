@@ -10,7 +10,6 @@ import { after, before, describe, it } from "node:test";
 import { askJson, askWithFiles, startInstance, stubLlm, stubVoice } from "./harness.js";
 
 const POSIX = process.platform !== "win32";
-const B1_PENDING = "xfail: waits for B1's upload fix (Hermes must read the whole uploaded file)";
 
 const PILES_REPLY = [
   "The desk colours are documented.",
@@ -133,7 +132,7 @@ describe("galion research e2e (local instance, stub Hermes)", () => {
     assert.match(llm.calls.at(-1).user, /SMALL-FILE-MARKER-4410/);
   });
 
-  it("Hermes reads the whole uploaded file, not only the first 1 KiB", { todo: B1_PENDING }, async () => {
+  it("Hermes reads the whole uploaded file, not only the first 1 KiB", async () => {
     const filler = "Lorem ipsum galion filler line.\n".repeat(160); // about 5 KiB
     const body = `${filler}DEEP-FILE-MARKER-9921\n${filler}`;
     const before = llm.calls.length;
@@ -224,10 +223,9 @@ describe("offline fallback to local knowledge", () => {
 });
 
 describe("routing to the voice desk upstream", () => {
-  it("forwards a JSON ask to the galion-one-voice /research/ask route", async () => {
+  it("forwards a JSON ask to the galion-one-voice /research/ask route when Hermes is not attached", async () => {
     const voice = await stubVoice();
-    const llm = await stubLlm(stubAnswer);
-    const app = await startInstance({ GALION_VOICE_URL: voice.origin, GALION_LLM: "hermes", GALION_LLM_URL: llm.url });
+    const app = await startInstance({ GALION_VOICE_URL: voice.origin });
     try {
       const res = await askJson(app.base, "Route me");
       assert.equal(res.status, 200);
@@ -235,9 +233,26 @@ describe("routing to the voice desk upstream", () => {
       const asked = voice.calls.filter((c) => c.method === "POST" && c.url === "/research/ask");
       assert.equal(asked.length, 1);
       assert.deepEqual(JSON.parse(asked[0].body), { question: "Route me" });
-      assert.equal(llm.calls.length, 0);
       const wire = await (await fetch(`${app.base}/research/wire`)).json();
       assert.equal(wire.upstreams.voice.state, "up");
+    } finally {
+      await app.stop();
+      await voice.close();
+    }
+  });
+
+  // Since #31: when Hermes is attached, a JSON ask goes to Hermes, not the voice desk.
+  it("asks Hermes, not the voice desk, when Hermes is attached", async () => {
+    const voice = await stubVoice();
+    const llm = await stubLlm(stubAnswer);
+    const app = await startInstance({ GALION_VOICE_URL: voice.origin, GALION_LLM: "hermes", GALION_LLM_URL: llm.url });
+    try {
+      const res = await askJson(app.base, "Route me");
+      assert.equal(res.status, 200);
+      assert.notEqual(res.data.reply, "VOICE-DESK-REPLY");
+      assert.equal(llm.calls.length, 1);
+      assert.match(llm.calls[0].user, /Route me/);
+      assert.equal(voice.calls.filter((c) => c.method === "POST" && c.url === "/research/ask").length, 0);
     } finally {
       await app.stop();
       await llm.close();
@@ -245,7 +260,7 @@ describe("routing to the voice desk upstream", () => {
     }
   });
 
-  it("an upload with the voice desk configured reaches Hermes with the file text", { todo: B1_PENDING }, async () => {
+  it("an upload with the voice desk configured reaches Hermes with the file text", async () => {
     const voice = await stubVoice();
     const llm = await stubLlm(stubAnswer);
     const app = await startInstance({ GALION_VOICE_URL: voice.origin, GALION_LLM: "hermes", GALION_LLM_URL: llm.url });

@@ -75,6 +75,10 @@ While a question is in flight the page shows one line: `Helpers: reading, source
 
 `GET /research/progress` is that session's in-flight phase. The page shows it as one quiet line, `Reading.`, and hides the line when the turn returns. Another session does not see it.
 
+Sources are one list: the title, the domain, and the link. A link is shown only when the citation already carried an `http` or `https` URL. The desk does not invent one.
+
+When Hermes is attached, the question goes to that loopback gateway, not to the voice desk. The gateway's `[n]` lines, `citations`, `search_results`, and `url_citation` annotations are the sources. A citation with a URL is also a Found line when the reply did not already separate one.
+
 ### Offline
 
 If the galion-one-voice origin is down and Hermes does not answer, the desk continues from local knowledge and marks the answer `Offline`. The quiet line is `Helpers are quiet. Local knowledge carries the question.` The reply says `Offline` and `Local`. Citations stay empty. A local line is labelled `Local` in that session's sources. It is not a citation. What this process already knows is the voice, the price, the palette, and the connection to Galion One. It does not fill a gap with a made-up source.
@@ -118,7 +122,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs `npm run build`, `npm run audit
 
 `npm run test:e2e-local` starts the real server (`node src/server.js`) as its own process on 127.0.0.1 and checks it from outside: health, an ask round trip, the Found / Inferred / Unknown split and citation sources, cross-site 403s, upload modes 700/600 (Linux only), offline fallback to local knowledge, the `/research/*` routes, and forwarding to the voice desk. Hermes is a loopback stub, so no model is called and nothing is paid for. The live model setting is not touched.
 
-Two tests are marked `todo` (expected failures): Hermes reading the whole uploaded file, not only the first 1 KiB excerpt. They wait for the upload fix. When one starts passing, the summary shows it as XPASS and the mark can come off.
+The two whole-file upload tests were `todo` until the upload fix (#33) landed; they now pass and the marks are off. A future `todo` test still shows as XFAIL, and as XPASS once it passes.
 
 On the laptop, `scripts/laptop-ci/research-e2e.ps1` (installed as `G:\galion\ci\research-e2e.ps1`, task `GalionResearchE2E`, every 5 min) runs the `ci/e2e-local` job from `scripts/laptop-ci/e2e-job.json` through `run-ci.ps1` on each new commit that GalionRepoMirror brings into `G:\galion\work\repos\hermes-research`. It writes one line per commit to `G:\galion\logs\ci\hermes-research-e2e.log`. It never pushes.
 

@@ -3,6 +3,7 @@
 
 import { localKnowledge } from "./local.js";
 import { idleProgress, progressDocument } from "./progress.js";
+import { sourceView } from "./source-list.js";
 import {
   LLM_NAME,
   REFUSED,
@@ -76,14 +77,18 @@ function offlineResult(question, key) {
 function finish(turn, question, key) {
   const leaked = Boolean(key) && (turn.text.includes(key) || turn.citations.some((cite) => cite.text.includes(key)));
   if (leaked || turn.text === UNREACHABLE) return offlineResult(question, key);
-  let status = researchState(turn.text);
-  let citations = status === "Returned" ? turn.citations.map((cite) => ({ n: cite.n, text: scrub(cite.text, key) })) : [];
-  citations = citations.filter((cite) => cite.text);
+  let citations = (turn.citations || []).map((cite) => ({ n: cite.n, text: scrub(cite.text, key) })).filter((cite) => cite.text);
+  const linked = citations.filter((cite) => sourceView(cite.text).href);
+  let status = linked.length ? "Returned" : researchState(turn.text);
+  if (status !== "Returned") citations = [];
   const piles = notebookPiles(scrub(turn.raw || turn.text, key));
   if ((status === "NotFound" || status === "Unreachable" || status === "Denied") && piles.unknown.length === 0) {
     piles.unknown.push(scrub(turn.text, key));
   }
   if (status !== "Returned") piles.found = [];
+  else if (piles.found.length === 0 && linked.length) {
+    piles.found = linked.map((cite) => sourceView(cite.text).title).filter(Boolean);
+  }
   return {
     status,
     reply: scrub(turn.text, key),
@@ -168,20 +173,25 @@ export function createDesk(hermes, deps = {}) {
     return session.sources.map((source) => ({ ...source }));
   }
 
+  function listed(source) {
+    const view = sourceView(source.text || "");
+    return { ...source, title: view.title, domain: view.domain, href: view.href };
+  }
+
   function rememberSources(session, note) {
     if (note.status === "Offline") {
       if (!session.sources.some((source) => source.label === "Local")) {
-        session.sources.push({ label: "Local", text: LOCAL_SOURCE, questionId: note.id });
+        session.sources.push(listed({ label: "Local", text: LOCAL_SOURCE, questionId: note.id }));
       }
     } else if (note.status === "Returned") {
       for (const cite of note.citations) {
         if (!cite.text || session.sources.length >= SOURCE_CAP) continue;
-        session.sources.push({ label: "Citation", n: cite.n, text: cite.text, questionId: note.id });
+        session.sources.push(listed({ label: "Citation", n: cite.n, text: cite.text, questionId: note.id }));
       }
     }
     for (const source of note.handed || []) {
       if (!source.text || session.sources.length >= SOURCE_CAP) continue;
-      session.sources.push({ label: "File", text: source.text, questionId: note.id });
+      session.sources.push(listed({ label: "File", text: source.text, questionId: note.id }));
     }
     while (session.sources.length > SOURCE_CAP) session.sources.shift();
   }
@@ -236,16 +246,31 @@ export function createDesk(hermes, deps = {}) {
     return job;
   }
 
-  function handedText(files, key) {
+  function handedText(files, key, attached = false) {
     const sources = [];
     const lines = [];
+    const turn = [];
     for (const file of files || []) {
       const name = scrub(file.name, key);
       sources.push({ label: "File", text: name });
+      const content = file.content && file.content.ok ? file.content : null;
+      if (attached && content) {
+        // Hermes gets the file text in its own message. The question line only names it.
+        lines.push(`Handed file ${name}, ${file.bytes} bytes.`);
+        turn.push({
+          name,
+          bytes: file.bytes,
+          text: content.binary ? "" : scrub(content.text, key),
+          truncated: content.truncated,
+          binary: content.binary,
+          readable: true,
+        });
+        continue;
+      }
       const excerpt = scrub(file.excerpt || "", key).replace(/\s+/g, " ").trim();
       lines.push(excerpt ? `Handed file ${name}, ${file.bytes} bytes. ${excerpt}` : `Handed file ${name}, ${file.bytes} bytes.`);
     }
-    return { line: lines.join(" "), sources };
+    return { line: lines.join(" "), sources, turn };
   }
 
   async function run(question, sessionId, files) {
@@ -254,7 +279,7 @@ export function createDesk(hermes, deps = {}) {
     session.nextId += 1;
     const id = session.nextId;
     const clean = scrub(question, hermes.key);
-    const handed = handedText(files, hermes.key);
+    const handed = handedText(files, hermes.key, hermes.attached);
     const room = 2_000 - [...clean].length - 1;
     const extra = room > 0 ? [...handed.line].slice(0, room).join("") : "";
     const asked = extra ? `${clean}\n${extra}` : clean;
@@ -263,9 +288,12 @@ export function createDesk(hermes, deps = {}) {
       const local = offlineResult(clean, hermes.key);
       done = handed.line ? { ...local, reply: `${local.reply} ${handed.line}` } : local;
     } else {
-      const turn = await turnFn(hermes, asked);
+      const turn = handed.turn.length ? await turnFn(hermes, asked, handed.turn) : await turnFn(hermes, asked);
       done = finish(turn, clean, hermes.key);
-      if (handed.line && done.status === "Offline") done = { ...done, reply: `${done.reply} ${handed.line}` };
+      if (handed.line && done.status === "Offline") {
+        const offline = handedText(files, hermes.key, false).line;
+        done = { ...done, reply: `${done.reply} ${offline}` };
+      }
     }
     const note = { id, at: Date.now(), question: clean, ...done, handed: handed.sources };
     session.notes.push(note);
