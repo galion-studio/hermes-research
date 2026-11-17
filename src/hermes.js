@@ -85,7 +85,7 @@ export function handedMessage(files, cap = HANDED_CHARS) {
     let body = typeof file.text === "string" ? file.text : "";
     let note = "";
     if (file.binary) note = " Binary file. Its bytes are not shown.";
-    else if (!file.readable) note = " The file could not be read.";
+    else if (file.readable === false) note = " The file could not be read.";
     const chars = [...body];
     if (chars.length > left) {
       body = chars.slice(0, left).join("");
