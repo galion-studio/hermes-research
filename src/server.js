@@ -438,11 +438,17 @@ export function createApp(env = process.env) {
         return;
       }
       const body = await whileAsking(async (mark) => {
-        const proxied = await fromUpstream("/research/ask", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question }),
-        }, wire.askTimeoutMs);
+        const proxied = hermes.attached
+          ? null
+          : await fromUpstream(
+              "/research/ask",
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ question }),
+              },
+              wire.askTimeoutMs,
+            );
         if (proxied && proxied.state === "http" && proxied.status === 400) {
           sendProxied(res, proxied);
           return null;
