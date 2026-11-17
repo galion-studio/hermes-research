@@ -118,6 +118,14 @@ cd e2e && npm ci && npx playwright install chromium && npx playwright test
 
 GitHub Actions (`.github/workflows/ci.yml`) runs `npm run build`, `npm run audit`, `npm test`, and the Playwright suite on push and on pull request. The workflow installs Chromium with its system libraries before the suite. It does not deploy.
 
+## End-to-end harness (laptop CI)
+
+`npm run test:e2e-local` starts the real server (`node src/server.js`) as its own process on 127.0.0.1 and checks it from outside: health, an ask round trip, the Found / Inferred / Unknown split and citation sources, cross-site 403s, upload modes 700/600 (Linux only), offline fallback to local knowledge, the `/research/*` routes, and forwarding to the voice desk. Hermes is a loopback stub, so no model is called and nothing is paid for. The live model setting is not touched.
+
+The two whole-file upload tests were `todo` until the upload fix (#33) landed; they now pass and the marks are off. A future `todo` test still shows as XFAIL, and as XPASS once it passes.
+
+On the laptop, `scripts/laptop-ci/research-e2e.ps1` (installed as `G:\galion\ci\research-e2e.ps1`, task `GalionResearchE2E`, every 5 min) runs the `ci/e2e-local` job from `scripts/laptop-ci/e2e-job.json` through `run-ci.ps1` on each new commit that GalionRepoMirror brings into `G:\galion\work\repos\hermes-research`. It writes one line per commit to `G:\galion\logs\ci\hermes-research-e2e.log`. It never pushes.
+
 ## Deploy kit
 
 The desk is not deployed. The kit in this repo is the hardened unit, the env example, the health check, and the release layout. See [docs/DEPLOY.md](docs/DEPLOY.md). The scripts refuse `--execute`. Nothing in this repository connects to a host.

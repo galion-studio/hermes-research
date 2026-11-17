@@ -1,0 +1,8 @@
+{
+ "id": "ci/e2e-local",
+ "workflow": "laptop-only",
+ "host": "wsl",
+ "run": "node --version\nif [ ! -f test/e2e-local/e2e.test.js ]; then echo 'SKIP: no e2e harness at this commit'; exit 0; fi\nrc=0\nnode --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=tap --test-reporter-destination=\"$RUNNER_TEMP/e2e.tap\" test/e2e-local/*.test.js || rc=$?\nnode scripts/laptop-ci/e2e-summary.js \"$RUNNER_TEMP/e2e.tap\" \"$RUNNER_TEMP/e2e-summary.json\" || { [ \"$rc\" -ne 0 ] || rc=1; }\nexit $rc",
+ "group": "default",
+ "note": "End-to-end harness against a local instance in WSL; stub Hermes on loopback, no paid calls. todo tests are xfail."
+}
