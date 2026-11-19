@@ -32,7 +32,7 @@ function postForm(base, { question, files }) {
         } catch {
           data = null;
         }
-        resolve({ status: res.statusCode, data, text });
+        resolve({ status: res.statusCode, data, text, headers: res.headers });
       },
     );
     req.on("error", reject);
@@ -110,6 +110,56 @@ describe("streamed uploads", () => {
       const after = await readdir(dir);
       assert.equal(after.every((name) => /^[a-f0-9]{32}$/.test(name)), true);
       assert.equal(after.includes(hostileName), false);
+    } finally {
+      await new Promise((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())));
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("answers an upload as an attachment and still accepts a dotfile", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "galion-upload-disp-"));
+    const server = await start({ env: { GALION_UPLOAD_DIR: dir }, port: 0 });
+    try {
+      const { port } = server.address();
+      const base = `http://127.0.0.1:${port}`;
+      const dot = await postForm(base, {
+        question: "What is in the file?",
+        files: [{ name: ".notes", body: Buffer.from("dotfile-marker\n") }],
+      });
+      assert.equal(dot.status, 200);
+      assert.notEqual(dot.status, 413);
+      assert.match(dot.data.reply, /dotfile-marker/);
+      assert.equal(dot.headers["content-type"], "application/json; charset=utf-8");
+      assert.equal(dot.headers["x-content-type-options"], "nosniff");
+      assert.equal(dot.headers["referrer-policy"], "no-referrer");
+      assert.match(dot.headers["content-security-policy"], /frame-ancestors 'none'/);
+      assert.match(dot.headers["content-disposition"], /^attachment;/);
+      assert.match(dot.headers["content-disposition"], /filename="\.notes"/);
+      assert.equal(String(dot.headers["content-disposition"]).includes("inline"), false);
+      assert.equal(String(dot.headers["content-disposition"]).includes("\n"), false);
+
+      const page = await postForm(base, {
+        question: "What is the page?",
+        files: [{ name: "page.html", body: Buffer.from("<script>alert(1)</script>") }],
+      });
+      assert.equal(page.status, 200);
+      assert.equal(page.headers["content-type"], "application/json; charset=utf-8");
+      assert.match(page.headers["content-disposition"], /^attachment; filename="page\.html"/);
+      assert.equal(String(page.headers["content-disposition"]).includes("inline"), false);
+      assert.match(page.data.reply, /page\.html/);
+
+      const tricky = await postForm(base, {
+        question: "What name is this?",
+        files: [{ name: "notes;evil.txt", body: Buffer.from("kept\n") }],
+      });
+      assert.equal(tricky.status, 200);
+      assert.equal(tricky.data.sources.some((source) => source.text === "notes;evil.txt"), true);
+      const disposition = String(tricky.headers["content-disposition"]);
+      assert.match(disposition, /^attachment;/);
+      assert.equal(disposition.includes("\r"), false);
+      assert.equal(disposition.includes("\n"), false);
+      assert.equal(disposition.includes(";evil"), false);
+      assert.equal(tricky.headers["content-type"], "application/json; charset=utf-8");
     } finally {
       await new Promise((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())));
       await rm(dir, { recursive: true, force: true });

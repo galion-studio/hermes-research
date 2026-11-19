@@ -131,6 +131,9 @@ describe("headers, cookies, and the loopback bind", () => {
       assert.match(html, new RegExp(`<style nonce="${nonce}">`));
       assert.match(html, new RegExp(`<script nonce="${nonce}">`));
       assert.equal(csp.includes("unsafe-inline"), false);
+      assert.match(csp, /script-src-attr 'none'/);
+      assert.match(csp, /frame-ancestors 'none'/);
+      assert.equal(page.headers.get("content-disposition"), null);
       assert.equal(page.headers.get("x-content-type-options"), "nosniff");
       assert.equal(page.headers.get("x-frame-options"), "DENY");
       assert.equal(page.headers.get("referrer-policy"), "no-referrer");
