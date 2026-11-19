@@ -290,6 +290,23 @@ body[data-theme="ocean"]{
   body[data-ui="minimal"]:not([data-state="empty"]) .stage{justify-content:flex-start;padding-top:max(16px, env(safe-area-inset-top, 0px));padding-bottom:max(24px, env(safe-area-inset-bottom, 0px))}
   body[data-ui="minimal"] .field{position:sticky;top:calc(env(safe-area-inset-top, 0px) + var(--vv-offset, 0px));z-index:2}
 }
+@media (max-width:360px){
+  body[data-ui="minimal"] .stage{padding-bottom:calc(var(--ask-reserve, 18rem) + env(safe-area-inset-bottom, 0px))}
+  body[data-ui="minimal"] .ask{
+    position:fixed;
+    left:max(12px, env(safe-area-inset-left, 0px));
+    right:max(12px, env(safe-area-inset-right, 0px));
+    bottom:calc(var(--kb-inset, 0px) + env(safe-area-inset-bottom, 0px));
+    z-index:4;
+    width:auto;
+    margin:0;
+    padding:8px 0;
+    background:linear-gradient(to top, var(--ground) 78%, transparent)}
+}
+@media (max-width:360px) and (max-height:520px){
+  body[data-ui="minimal"] .voice,
+  body[data-ui="minimal"] #voice-dot{width:44px;height:44px}
+}
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation-duration:0.01ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important;scroll-behavior:auto !important}
   body{transition:none}
@@ -959,6 +976,30 @@ function tone(id){
   if(window.visualViewport){
     visualViewport.addEventListener("resize", settleAsk);
   }
+  function placeThumb(){
+    var root=document.documentElement;
+    var narrow=window.matchMedia("(max-width: 360px)").matches;
+    var ask=document.getElementById("ask");
+    if(!narrow||document.body.getAttribute("data-ui")!=="minimal"){
+      root.style.removeProperty("--kb-inset");
+      root.style.removeProperty("--ask-reserve");
+      return;
+    }
+    var vv=window.visualViewport;
+    var inset=0;
+    if(vv) inset=Math.max(0, Math.round(window.innerHeight-vv.offsetTop-vv.height));
+    root.style.setProperty("--kb-inset", inset+"px");
+    if(ask) root.style.setProperty("--ask-reserve", Math.ceil(ask.getBoundingClientRect().height)+"px");
+  }
+  placeThumb();
+  window.addEventListener("resize", placeThumb);
+  if(window.visualViewport){
+    visualViewport.addEventListener("resize", placeThumb);
+    visualViewport.addEventListener("scroll", placeThumb);
+  }
+  document.getElementById("ui-toggle").addEventListener("click", function(){
+    requestAnimationFrame(placeThumb);
+  });
   prompt.addEventListener("keydown", function(ev){
     if(ev.key!=="Enter"||ev.shiftKey||ev.isComposing) return;
     ev.preventDefault();
