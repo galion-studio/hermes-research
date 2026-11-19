@@ -127,7 +127,7 @@ textarea::placeholder{color:color-mix(in srgb, var(--ice) 72%, var(--ground))}
 #commit-hint{margin-left:8px}
 #send svg{width:18px;height:18px;display:block}
 #send:hover:not(:disabled){background:radial-gradient(circle at 50% 42%, var(--ice), var(--ice) 46%, var(--sky))}
-#send:disabled{background:transparent;color:var(--quiet);border-color:color-mix(in srgb, var(--ink) 28%, var(--ground));box-shadow:none;cursor:default}
+#send:disabled{background:transparent;color:var(--quiet);border-color:var(--line);box-shadow:none;cursor:default}
 .price{margin:22px 0 0;text-align:center;font:13px/1.4 var(--om-font-sans);letter-spacing:.08em;color:var(--quiet)}
 .composer{display:grid;grid-template-columns:44px minmax(0,1fr);column-gap:12px;align-items:start}
 .composer textarea{grid-column:2;grid-row:1}
@@ -185,7 +185,7 @@ textarea::placeholder{color:color-mix(in srgb, var(--ice) 72%, var(--ground))}
 #plan-list li,#source-list li{margin:0 0 8px;font:15px/1.45 var(--om-font-sans);color:color-mix(in srgb, var(--ink) 88%, transparent);overflow-wrap:anywhere}
 #live-question{color:var(--ink)}
 #source-empty,#citation-empty,#found-empty,#inferred-empty,#unknown-empty,#reading-empty,#arriving-empty{margin:0;font:15px/1.45 var(--om-font-sans);color:var(--quiet)}
-#reading{max-width:68ch;min-height:11em}
+#reading{max-width:68ch;min-height:11em;max-height:min(46vh,28rem);overflow-y:auto;scroll-margin-top:16px}
 #reading p{margin:0 0 12px;font:18px/1.6 var(--om-font-sans);overflow-wrap:anywhere}
 #reading-question{color:var(--ink)}
 #reading-local{color:color-mix(in srgb, var(--ink) 72%, transparent)}
@@ -193,17 +193,28 @@ textarea::placeholder{color:color-mix(in srgb, var(--ice) 72%, var(--ground))}
 #citation-list{color:color-mix(in srgb, var(--ink) 78%, transparent);font:14px/1.45 var(--om-font-sans)}
 #citation-list .mark{color:var(--amber);margin-right:.4em}
 #helpers{margin:18px 0 0;text-align:center;font:13px/1.4 var(--om-font-sans);letter-spacing:.04em;color:var(--quiet)}
-#state-line,#loading{margin:0 0 18px;text-align:center;font:13px/1.4 var(--om-font-mono);letter-spacing:.08em;text-transform:uppercase;color:color-mix(in srgb, var(--ice) 82%, var(--ink))}
+#state-line,#loading{margin:0 0 18px;text-align:center;font:15px/1.45 var(--om-font-sans);color:var(--ink)}
 body:not([data-ui="minimal"]) #state-line{display:none}
-#error{margin:12px 0 0;text-align:center;font:15px/1.45 var(--om-font-sans);color:var(--ice)}
+#error{margin:12px 0 0;text-align:center;font:15px/1.45 var(--om-font-sans);color:var(--ink)}
 #ui-toggle,#silence{width:auto;height:44px;padding:0 14px;border-radius:var(--om-radius-pill);font:12px/1 var(--om-font-mono);letter-spacing:.08em;text-transform:uppercase}
 #silence[aria-pressed="true"]{color:var(--ground);background:var(--sky);border-color:var(--sky)}
 body[data-ui="minimal"] #rail,
-body[data-ui="minimal"] .work,
 body[data-ui="minimal"] #add-image,
-body[data-ui="minimal"] #commit-hint{display:none}
+body[data-ui="minimal"] #commit-hint,
+body[data-ui="minimal"] #sources,
+body[data-ui="minimal"] #citations,
+body[data-ui="minimal"] #notebook,
+body[data-ui="minimal"] #experiments,
+body[data-ui="minimal"][data-state="empty"] #work{display:none}
+body[data-ui="minimal"]:not([data-state="empty"]) #work{display:block;width:min(40rem,100%)}
+body[data-ui="minimal"]:not([data-state="empty"]) #answer{border:0;background:transparent;padding:0}
+body[data-ui="minimal"] #answer-label{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);clip-path:inset(50%);border:0}
+body[data-ui="minimal"] #reading{min-height:0;max-height:min(42vh,22rem)}
 body[data-ui="minimal"] .app{display:block}
 body[data-ui="minimal"] .stage{display:flex;flex-direction:column;align-items:center;justify-content:safe center;min-height:100vh;min-height:100dvh;width:min(880px,calc(100vw - 80px));margin:0 auto;padding:28px 0 36px;gap:18px;box-sizing:border-box}
+body[data-ui="minimal"]:not([data-state="empty"]) .stage{justify-content:flex-start;padding:28px 0 40px}
+body[data-ui="minimal"]:not([data-state="empty"]) .hero,
+body[data-ui="minimal"]:not([data-state="empty"]) .site-foot{display:none}
 body[data-ui="minimal"] .ask{width:100%}
 body[data-ui="minimal"] #helpers,
 body[data-ui="minimal"] #state-line,
@@ -276,6 +287,7 @@ body[data-theme="ocean"]{
     justify-content:center;
     justify-content:safe center;
     padding:env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px)}
+  body[data-ui="minimal"]:not([data-state="empty"]) .stage{justify-content:flex-start;padding-top:max(16px, env(safe-area-inset-top, 0px));padding-bottom:max(24px, env(safe-area-inset-bottom, 0px))}
   body[data-ui="minimal"] .field{position:sticky;top:calc(env(safe-area-inset-top, 0px) + var(--vv-offset, 0px));z-index:2}
 }
 @media (prefers-reduced-motion: reduce){
@@ -398,7 +410,7 @@ body[data-theme="ocean"]{
       <h2 id="answer-label">Open job</h2>
       <article id="reading">
         <p id="reading-question" hidden></p>
-        <p id="reading-body">The answer sits here, with the limit beside it.</p>
+        <p id="reading-body" aria-live="polite">The answer sits here, with the limit beside it.</p>
       </article>
     </section>
     <section class="panel" id="experiments" aria-labelledby="experiments-label">
@@ -514,7 +526,11 @@ function tone(id){
   var QUESTION_LIMIT=2000;
   function hermesStatus(text){
     statusEl.textContent=text;
-    if(stateLine) stateLine.textContent=text;
+  }
+  function phoneLine(text){
+    if(!stateLine) return;
+    stateLine.hidden=!text;
+    stateLine.textContent=text||"";
   }
   function fillList(ol, rows){
     while(ol.firstChild) ol.removeChild(ol.firstChild);
@@ -530,6 +546,45 @@ function tone(id){
   var errorEl=document.getElementById("error");
   var loadingEl=document.getElementById("loading");
   var answerEl=document.getElementById("answer");
+  var readingPane=document.getElementById("reading");
+  var readingBody=document.getElementById("reading-body");
+  var pagePinned=true;
+  var settling=false;
+  var ownScroll=false;
+  var slowTimer=0;
+  readingPane.addEventListener("scroll", function(){
+    if(settling) return;
+    var gap=readingPane.scrollHeight-readingPane.scrollTop-readingPane.clientHeight;
+    readingPane.dataset.pin=gap<64?"end":"free";
+  }, {passive:true});
+  new MutationObserver(function(){
+    if(readingPane.dataset.pin==="end") readingPane.scrollTop=readingPane.scrollHeight;
+  }).observe(readingBody, {childList:true, characterData:true, subtree:true});
+  function parkReading(){
+    settling=true;
+    readingPane.dataset.pin="start";
+    readingPane.scrollTop=0;
+    settling=false;
+  }
+  function revealReading(){
+    if(!pagePinned) return;
+    var box=readingPane.getBoundingClientRect();
+    if(box.top>=0 && box.bottom<=window.innerHeight) return;
+    ownScroll=true;
+    readingPane.scrollIntoView({block:"nearest", inline:"nearest", behavior:"auto"});
+    ownScroll=false;
+  }
+  function noteUserScroll(){
+    if(ownScroll||settling) return;
+    pagePinned=false;
+  }
+  window.addEventListener("wheel", noteUserScroll, {passive:true, capture:true});
+  window.addEventListener("touchmove", noteUserScroll, {passive:true, capture:true});
+  window.addEventListener("scroll", noteUserScroll, {passive:true});
+  window.addEventListener("keydown", function(ev){
+    if(ev.target&&ev.target.id==="prompt") return;
+    if(ev.key==="ArrowDown"||ev.key==="ArrowUp"||ev.key==="PageDown"||ev.key==="PageUp"||ev.key==="Home"||ev.key==="End"||ev.key===" ") pagePinned=false;
+  });
   function questionText(){
     return prompt.value.replace(/\s+/g," ").trim();
   }
@@ -539,7 +594,7 @@ function tone(id){
   }
   var placing=false;
   function keepAskInView(){
-    if(placing||!window.matchMedia("(max-width: 800px)").matches) return;
+    if(!pagePinned||placing||!window.matchMedia("(max-width: 800px)").matches) return;
     var vv=window.visualViewport;
     var top=vv?vv.offsetTop:0;
     var height=vv?vv.height:window.innerHeight;
@@ -552,24 +607,38 @@ function tone(id){
     var limitBottom=top+height-8;
     if(box.top>=limitTop&&box.bottom<=limitBottom) return;
     placing=true;
+    ownScroll=true;
     field.scrollIntoView({block:"nearest",inline:"nearest"});
+    ownScroll=false;
     setTimeout(function(){ placing=false; }, 60);
   }
   function settleAsk(){
+    if(!pagePinned) return;
     keepAskInView();
-    requestAnimationFrame(keepAskInView);
+    requestAnimationFrame(function(){ if(pagePinned) keepAskInView(); });
   }
   function setBusy(on){
+    if(slowTimer){ clearTimeout(slowTimer); slowTimer=0; }
     if(on){
       document.body.setAttribute("data-state","loading");
       answerEl.setAttribute("aria-busy","true");
       loadingEl.hidden=false;
+      loadingEl.textContent="Reading the question.";
+      phoneLine("Reading the question.");
       syncSend();
       settleAsk();
+      slowTimer=setTimeout(function(){
+        if(document.body.getAttribute("data-state")!=="loading") return;
+        loadingEl.textContent="Still reading. Hermes is taking a moment.";
+        phoneLine("Still reading. Hermes is taking a moment.");
+        helpers.textContent="The question is still with Hermes.";
+        if(readingBody.textContent==="Reading the question.") readingBody.textContent="Still reading. Hermes is taking a moment.";
+      }, 8000);
       return;
     }
     answerEl.removeAttribute("aria-busy");
     loadingEl.hidden=true;
+    loadingEl.textContent="Reading the question.";
     if(document.body.getAttribute("data-state")==="loading") document.body.removeAttribute("data-state");
     syncSend();
     settleAsk();
@@ -598,6 +667,7 @@ function tone(id){
     prompt.setAttribute("aria-errormessage","error");
     document.body.setAttribute("data-state","error");
     hermesStatus("Research · Error");
+    phoneLine("");
     renderHanded("Handed");
     helpers.hidden=false;
     helpers.textContent="Helpers are quiet.";
@@ -607,6 +677,8 @@ function tone(id){
     document.getElementById("citation-empty").hidden=false;
     document.getElementById("reading-question").hidden=true;
     document.getElementById("reading-body").textContent=text;
+    parkReading();
+    revealReading();
     fillPile("found", []);
     fillPile("inferred", []);
     fillPile("unknown", []);
@@ -621,6 +693,9 @@ function tone(id){
     document.getElementById("reading-question").textContent=q;
     document.getElementById("reading-question").hidden=false;
     document.getElementById("reading-body").textContent=OFFLINE;
+    phoneLine("Hermes is offline. This answer is from what the desk already knows.");
+    parkReading();
+    revealReading();
     markLocalSources();
     fillList(document.getElementById("citation-list"), []);
     document.getElementById("citation-empty").hidden=false;
@@ -679,6 +754,9 @@ function tone(id){
     hermesStatus("Research · "+(j.status||"Returned"));
     helpers.hidden=false;
     helpers.textContent=offline?"Helpers are quiet. Local knowledge carries the question.":(j.helpers||"Helpers are quiet.");
+    phoneLine(offline?"Hermes is offline. This answer is from what the desk already knows.":"");
+    parkReading();
+    revealReading();
     tone(offline?"local":"returned");
     renderHanded("Handed");
     settleAsk();
@@ -828,10 +906,16 @@ function tone(id){
     if(!q){ showError("The question is empty."); return; }
     if(Array.from(q).length>QUESTION_LIMIT){ showError("The question is longer than 2000 characters."); return; }
     clearError();
+    pagePinned=true;
     setBusy(true);
     hermesStatus("Research · Running");
     helpers.hidden=false;
     helpers.textContent="Helpers: reading, sources, notebook.";
+    document.getElementById("reading-question").textContent=q;
+    document.getElementById("reading-question").hidden=false;
+    readingBody.textContent="Reading the question.";
+    parkReading();
+    revealReading();
     fillList(document.getElementById("arriving-list"), [q]);
     document.getElementById("arriving-empty").hidden=true;
     tone("ask");
