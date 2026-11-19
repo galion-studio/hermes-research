@@ -15,7 +15,7 @@ The shape follows [galion-one-voice `scripts/deploy/release-dryrun.sh`](https://
 
 | Path | What |
 | --- | --- |
-| `deploy/systemd/galion-research.service` | systemd unit. `User=galion`. `PORT=8787`. Sandbox. Localhost only. |
+| `deploy/systemd/galion-research.service` | systemd unit. `Type=notify`. `User=galion`. `PORT=8787`. Sandbox. Localhost only. |
 | `deploy/research.env.example` | Environment file with no secret. Copy on the host to `/etc/galion/research.env`. |
 | `scripts/check-health.js` | `GET /health` on `127.0.0.1` only. `--execute` exits 2. |
 | `scripts/deploy/release-dryrun.sh` | Prints the layout and the rollback. `--execute` exits 2. |
@@ -62,6 +62,8 @@ Environment=GALION_LLM_KEY_NAME=API_SERVER_KEY
 ## Health
 
 `GET /health` returns `200` and `{"ok":true,"service":"galion-research","bind":"127.0.0.1"}`. It does not call Hermes, the research origin, or include the key. It sets no cookie and it is not counted by the rate limit. A browser page on loopback `http`, including the name `localhost`, may read the body. Any other origin is not copied into the response. Any other method is `405`.
+
+The unit is `Type=notify`. After the loopback listener is up, the process logs `Galion Research is ready.` and, when `NOTIFY_SOCKET` is set, runs `systemd-notify --ready`. systemd marks the service started on that datagram. `scripts/check-health.js` is the same readiness read a person runs. It does not start the process. `SIGTERM` logs `Galion Research is stopping.`, ends an ask that is still waiting, and runs `systemd-notify STOPPING=1`. A listen failure logs `Galion Research could not listen.` A notify failure logs `Galion Research could not signal readiness.` Those lines do not include the gateway key.
 
 `GET /research/wire` is the desk indicator. It dials only the loopback upstreams from [docs/FORWARD.md](FORWARD.md). It does not include the key. `GET /health` does not call it.
 

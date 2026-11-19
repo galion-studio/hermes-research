@@ -11,7 +11,10 @@ After=network.target
 Documentation=file:/opt/galion/research/current/docs/PI5-SEED.md
 
 [Service]
-Type=simple
+Type=notify
+NotifyAccess=main
+# Readiness is systemd-notify --ready after the listener is up.
+# GET /health is the same check. The Pi does not need Node for that read.
 User=galion
 Group=galion
 WorkingDirectory=/opt/galion/research/current

@@ -31,10 +31,7 @@ export const REPO_ROOT_BUNDLE =
 
 export const MAIN_TRAILER = `const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain) {
-  start().then((server) => {
-    const address = server.address();
-    console.log(\`Galion Research http://\${address.address}:\${address.port}/research\`);
-  });
+  run();
 }
 `;
 

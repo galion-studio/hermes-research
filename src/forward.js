@@ -98,13 +98,14 @@ async function readLimited(response, cap) {
   return Buffer.concat(chunks).toString("utf8");
 }
 
-export async function exchange(origin, path, init, timeoutMs) {
+export async function exchange(origin, path, init, timeoutMs, signal) {
+  const timeout = AbortSignal.timeout(timeoutMs);
   const response = await fetch(new URL(path, origin), {
     method: init && init.method ? init.method : "GET",
     headers: init && init.headers ? init.headers : undefined,
     body: init && init.body ? init.body : undefined,
     redirect: "error",
-    signal: AbortSignal.timeout(timeoutMs),
+    signal: signal ? AbortSignal.any([timeout, signal]) : timeout,
   });
   const text = await readLimited(response, BODY_CAP);
   if (text == null) return { status: response.status, text: "", overflow: true };

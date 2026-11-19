@@ -122,17 +122,9 @@ async function bundle() {
   uploads = mustReplace(uploads, REPO_ROOT_LINE, REPO_ROOT_BUNDLE, "upload root");
   await writeFile(uploadsPath, uploads);
 
-  const entry = `import { start } from "./server.js";
+  const entry = `import { run } from "./server.js";
 
-start()
-  .then((server) => {
-    const address = server.address();
-    console.log(\`Galion Research http://\${address.address}:\${address.port}/research\`);
-  })
-  .catch(() => {
-    console.error("Galion Research failed to listen");
-    process.exit(1);
-  });
+run();
 `;
   await writeFile(path.join(src, "pi-main.js"), entry);
 

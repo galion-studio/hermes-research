@@ -547,6 +547,7 @@ describe("deploy kit", () => {
       "IPAddressAllow=localhost",
       "MemoryMax=256M",
       "Restart=on-failure",
+      "Type=notify",
     ]) {
       assert.ok(unit.includes(line), line);
     }
