@@ -6,7 +6,7 @@ The desk uses Ink `#0B0F14`, Ice `#B8E8FF`, Sky `#58C4FF`, Ocean `#0B5FA5`. The 
 
 The voice is: Galion Research. What are we looking into? The handoff from Galion One is voice-only. No letter is drawn on the disc. The disc is Ice, Sky, and Ocean.
 
-The rail offers four themes: Ink, Ice, Sky, and Ocean. Ink is the one the desk opens on. The ground stays Ink in all four, so Ice and Sky text keep their contrast. The disc does not change colour. Focus rings are Sky, 2 px, with a 3 px offset. Escape hides the interface. Send enqueues the question. Return does the same. Shift and return keeps the line. Found, Inferred, and Unknown each have a screen-reader name. Reduced motion holds the disc and skips transitions. A question in flight says `Reading the question.` An empty desk, an empty question, and an offline answer stay separate states.
+The rail offers four themes: Ink, Ice, Sky, and Ocean. Ink is the one the desk opens on. The ground stays Ink in all four, so Ice and Sky text keep their contrast. The disc does not change colour. Focus rings are Sky, 2 px, with a 3 px offset. Tab reaches the ask field, the upload controls, and Send once the question has words, then the answer and the sources on the open desk. The answer is announced when it arrives. An error is announced. Escape hides the interface. Send enqueues the question. Return does the same. Shift and return keeps the line. Found, Inferred, and Unknown each have a screen-reader name. Reduced motion holds the disc and skips transitions. A question in flight says `Reading the question.` An empty desk, an empty question, and an offline answer stay separate states.
 
 Ultra is $220/€220 per month. That line is copy, not a checkout.
 
@@ -117,6 +117,8 @@ cd e2e && npm ci && npx playwright install chromium && npx playwright test
 ```
 
 GitHub Actions (`.github/workflows/ci.yml`) runs `npm run build`, `npm run audit`, `npm test`, and the Playwright suite on push and on pull request. The workflow installs Chromium with its system libraries before the suite. It does not deploy.
+
+`e2e/a11y.spec.js` checks that keyboard path, the icon-button names, the answer and error announcements, and reduced motion. It runs axe in the local browser. It does not call a paid service. Uploads stay without a type list and without a size cap.
 
 ## End-to-end harness (laptop CI)
 
