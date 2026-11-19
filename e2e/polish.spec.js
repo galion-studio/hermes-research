@@ -386,11 +386,18 @@ test("a manual scroll is left alone when the answer arrives", async ({ page }) =
   await page.locator("#prompt").press("Enter");
   await expect(page.locator("#loading")).toBeVisible();
   await page.mouse.wheel(0, 160);
-  const parked = await page.evaluate(() => window.scrollY);
+  const parked = await page.evaluate(() => ({
+    y: window.scrollY,
+    height: document.documentElement.scrollHeight,
+  }));
   release();
   await expect(page.locator("#reading-body")).toHaveText("The answer arrives after the scroll.");
-  const after = await page.evaluate(() => window.scrollY);
-  expect(Math.abs(after - parked)).toBeLessThan(48);
+  const after = await page.evaluate(() => ({
+    y: window.scrollY,
+    height: document.documentElement.scrollHeight,
+  }));
+  // The loading line can leave. That shortens the page. A jump to the answer would not.
+  expect(Math.abs(after.y - parked.y - (after.height - parked.height))).toBeLessThan(48);
 });
 
 test("an empty question stays an error in calm type", async ({ page }) => {

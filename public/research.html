@@ -591,7 +591,7 @@ function tone(id){
   }
   var placing=false;
   function keepAskInView(){
-    if(placing||!window.matchMedia("(max-width: 800px)").matches) return;
+    if(!pagePinned||placing||!window.matchMedia("(max-width: 800px)").matches) return;
     var vv=window.visualViewport;
     var top=vv?vv.offsetTop:0;
     var height=vv?vv.height:window.innerHeight;
@@ -612,7 +612,7 @@ function tone(id){
   function settleAsk(){
     if(!pagePinned) return;
     keepAskInView();
-    requestAnimationFrame(keepAskInView);
+    requestAnimationFrame(function(){ if(pagePinned) keepAskInView(); });
   }
   function setBusy(on){
     if(slowTimer){ clearTimeout(slowTimer); slowTimer=0; }
