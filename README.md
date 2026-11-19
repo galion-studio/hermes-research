@@ -1,8 +1,8 @@
 # Galion Research
 
-Galion One is the product. Galion Research is a voice inside it, and this workspace. It connects to Galion One. It is not a copy of the One page.
+Galion Research is a PhD-level research workspace, separate from Galion One, with its own memory. This repository is the Galion Research web app for `research.galion.app`. It can hand a voice across to Galion One. It is not a copy of the One page.
 
-The desk is the page already live at [galion.app/research](https://galion.app/research), from [galion-studio/galion-one-voice#128](https://github.com/galion-studio/galion-one-voice/pull/128). Ink `#0B0F14`, Ice `#B8E8FF`, Sky `#58C4FF`, Ocean `#0B5FA5`. The field says Ask anything. Beside it, a voice disc and a file plus. Show interface opens Sources, Citations, the Notebook (Found, Inferred, Unknown), and an experiment card that asks before anything runs. Hide interface returns to the bare field.
+The desk uses Ink `#0B0F14`, Ice `#B8E8FF`, Sky `#58C4FF`, Ocean `#0B5FA5`. The field says Ask anything…. The file plus sits on the left of that field and the voice disc sits on the right. Show interface opens Sources, Citations, the Notebook (Found, Inferred, Unknown), and an experiment card that asks before anything runs. Hide interface returns to the bare field. The page says Galion Research for live users is coming very soon, and links to the desktop alpha workflow because no GitHub Release is published yet.
 
 The voice is: Galion Research. What are we looking into? The handoff from Galion One is voice-only. No letter is drawn on the disc. The disc is Ice, Sky, and Ocean.
 
@@ -10,7 +10,7 @@ The rail offers four themes: Ink, Ice, Sky, and Ocean. Ink is the one the desk o
 
 Ultra is $220/€220 per month. That line is copy, not a checkout.
 
-Hermes is the research agent. This process does not ship a voice model, a clone, or an audio file. Research cues are 432 Hz just-intonation ratios in `src/cues.js` and on the page. Definitions only. Silence, and `?silence=1`, keeps those cues quiet. The Silence control sits on the field. Typing in the field does not toggle it. `s` does, when focus is outside the field.
+The research engine runs on this machine. Its crates are still named hermes-rs and hermes-gateway. This process does not ship a voice model, a clone, or an audio file. Research cues are 432 Hz just-intonation ratios in `src/cues.js` and on the page. Definitions only. Silence, and `?silence=1`, keeps those cues quiet. The Silence control sits on the field. Typing in the field does not toggle it. `s` does, when focus is outside the field.
 
 The 7 October 2026 notes are kept in [docs/archive](docs/archive/).
 
@@ -45,9 +45,9 @@ The JSON shape is `galion-research/1`: `status`, `reply`, `citations` as `{ "n",
 
 `GET /one` redirects to Galion One (`GALION_ONE_URL`, default `https://galion.app/one`). That is the product link. This repo does not draw the One dot.
 
-### Hermes
+### Research engine
 
-When `GALION_RESEARCH_URL` is unset, or that origin cannot be reached, Hermes is the engine on this machine.
+When `GALION_RESEARCH_URL` is unset, or that origin cannot be reached, the research engine on this machine answers. The engine crates and the variables below still use the historical name.
 
 | Variable | Role |
 | --- | --- |
@@ -72,6 +72,12 @@ Environment=GALION_LLM_KEY_NAME=API_SERVER_KEY
 The research turn uses the Galion Research system prompt from `galion-cascade` `research_turn`. Citation lines are the `[n]` lines the model actually returned. If there is no source, the reply says so and the citation list stays empty. This desk does not invent a paper, a URL, a date, or a measurement.
 
 While a question is in flight the page shows one line: `Helpers: reading, sources, notebook.` Research may split the work that way on its own. When the turn returns, the line goes quiet.
+
+`GET /research/progress` is that session's in-flight phase. The page shows it as one quiet line, `Reading.`, and hides the line when the turn returns. Another session does not see it.
+
+Sources are one list: the title, the domain, and the link. A link is shown only when the citation already carried an `http` or `https` URL. The desk does not invent one.
+
+When Hermes is attached, the question goes to that loopback gateway, not to the voice desk. The gateway's `[n]` lines, `citations`, `search_results`, and `url_citation` annotations are the sources. A citation with a URL is also a Found line when the reply did not already separate one.
 
 ### Offline
 
@@ -102,7 +108,7 @@ npm run build
 npm test
 ```
 
-Node 22, no packages. `npm run build` is a syntax check of the sources, the health check, and the tests. There is no bundle step. `npm test` runs the unit tests, the integration tests against a stub Hermes, `test/research.test.js`, and `npm audit` for this package and for `e2e/`. The unit tests cover local knowledge, the size limits, the rate limit, the cookie flags, the loopback rule, and per-session sources without opening a socket. The integration tests stay on the loopback interface, including a timeout and a dropped connection. The page tests cover Silence, the Offline mark, a loopback Hermes turn that keeps the key out of the reply, citation lines, the notebook piles, the forward to a `/research` origin, `GET /health`, and the deploy kit.
+Node 22, no packages. `npm run build` is a syntax check of the sources, the health check, and the tests. There is no bundle step. `npm test` runs the unit tests, the integration tests against a stub Hermes, `test/research.test.js`, and `npm audit` for this package and for `e2e/`. The unit tests cover local knowledge, the size limits, the rate limit, the cookie flags, the loopback rule, and per-session sources without opening a socket. The integration tests stay on the loopback interface, including a timeout and a dropped connection. `test/integration/stub-backends.test.js` starts the desk on 127.0.0.1 against a stub Hermes and a stub voice backend. It checks health, a normal ask, a slow ask, an offline backend, an upload round-trip, and offline mode. Neither stub leaves loopback, and neither is a paid model. GitHub Actions runs that file on its own after `npm test`. The page tests cover Silence, the Offline mark, a loopback Hermes turn that keeps the key out of the reply, citation lines, the notebook piles, the forward to a `/research` origin, `GET /health`, and the deploy kit.
 
 Desktop and phone screenshots, plus the accessibility checks:
 
@@ -112,9 +118,19 @@ cd e2e && npm ci && npx playwright install chromium && npx playwright test
 
 GitHub Actions (`.github/workflows/ci.yml`) runs `npm run build`, `npm run audit`, `npm test`, and the Playwright suite on push and on pull request. The workflow installs Chromium with its system libraries before the suite. It does not deploy.
 
+## End-to-end harness (laptop CI)
+
+`npm run test:e2e-local` starts the real server (`node src/server.js`) as its own process on 127.0.0.1 and checks it from outside: health, an ask round trip, the Found / Inferred / Unknown split and citation sources, cross-site 403s, upload modes 700/600 (Linux only), offline fallback to local knowledge, the `/research/*` routes, and forwarding to the voice desk. Hermes is a loopback stub, so no model is called and nothing is paid for. The live model setting is not touched.
+
+The two whole-file upload tests were `todo` until the upload fix (#33) landed; they now pass and the marks are off. A future `todo` test still shows as XFAIL, and as XPASS once it passes.
+
+On the laptop, `scripts/laptop-ci/research-e2e.ps1` (installed as `G:\galion\ci\research-e2e.ps1`, task `GalionResearchE2E`, every 5 min) runs the `ci/e2e-local` job from `scripts/laptop-ci/e2e-job.json` through `run-ci.ps1` on each new commit that GalionRepoMirror brings into `G:\galion\work\repos\hermes-research`. It writes one line per commit to `G:\galion\logs\ci\hermes-research-e2e.log`. It never pushes.
+
 ## Deploy kit
 
-The desk is not deployed. The kit in this repo is the hardened unit, the env example, the health check, and the release layout. See [docs/DEPLOY.md](docs/DEPLOY.md). The scripts refuse `--execute`. Nothing in this repository connects to a host.
+The desk is not deployed. The kit in this repo is the hardened unit, the env example, the health check, and the release layout. See [docs/DEPLOY.md](docs/DEPLOY.md). The scripts refuse `--execute`. Nothing in this repository connects to a host, and nothing here changes DNS.
+
+To serve this app at `research.galion.app`, a person adds a DNS record for that name to the same front that already reaches the machine, then points that host at this process on loopback port 8787. Same-origin posts on `https://research.galion.app` are already allowed. This repository does not make that DNS change and does not edit the front.
 
 The Pi 5 seed is a single executable of this same desk for `linux-arm64` and `linux-x64`. The workflow that builds it smoke-starts the arm64 binary under qemu-user. It does not boot a Raspberry Pi. See [docs/PI5-SEED.md](docs/PI5-SEED.md).
 

@@ -30,7 +30,7 @@ SOFTWARE.
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#0B0F14">
 <meta name="color-scheme" content="dark">
 <title>Galion Research</title>
@@ -112,7 +112,8 @@ textarea::placeholder{color:color-mix(in srgb, var(--ice) 72%, var(--ground))}
 #file-names,#file-note{margin:0;font:15px/1.4 var(--om-font-sans);color:var(--ink);overflow-wrap:anywhere}
 #file-preview{width:44px;height:44px;border-radius:10px;object-fit:cover;border:1px solid var(--line);background:var(--ground)}
 #file-preview[hidden],#file-clear[hidden]{display:none}
-#file-clear{box-sizing:border-box;min-width:44px;min-height:44px;padding:0 14px}
+#file-clear{appearance:none;box-sizing:border-box;min-width:44px;height:44px;padding:0 14px;border-radius:var(--om-radius-pill);border:1px solid var(--line);background:transparent;color:var(--ink);font:12px/1 var(--om-font-mono);letter-spacing:.06em;cursor:pointer}
+#file-clear:hover,#file-clear:focus-visible{border-color:var(--sky);color:var(--ink)}
 .voice{width:120px;height:120px;flex:none;border:0;border-radius:999px;background:
   radial-gradient(circle at 50% 46%, color-mix(in srgb, var(--ice) 50%, transparent), color-mix(in srgb, var(--sky) 36%, transparent) 48%, transparent 72%)}
 .voice:focus-visible{outline-offset:3px}
@@ -127,6 +128,24 @@ textarea::placeholder{color:color-mix(in srgb, var(--ice) 72%, var(--ground))}
 #send:hover:not(:disabled){background:radial-gradient(circle at 50% 42%, var(--ice), var(--ice) 46%, var(--sky))}
 #send:disabled{background:transparent;color:var(--quiet);border-color:var(--line);box-shadow:none;cursor:default}
 .price{margin:22px 0 0;text-align:center;font:13px/1.4 var(--om-font-sans);letter-spacing:.08em;color:var(--quiet)}
+.composer{display:grid;grid-template-columns:44px minmax(0,1fr);column-gap:12px;align-items:start}
+.composer textarea{grid-column:2;grid-row:1}
+.composer #add-file{grid-column:1;grid-row:1}
+#add-file{appearance:none;display:grid;place-items:center;width:44px;height:44px;margin:0;padding:0;cursor:pointer;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--quiet)}
+#add-file:hover,#add-file:focus-visible{border-color:var(--sky);color:var(--ink)}
+#add-file svg{width:22px;height:22px;display:block}
+.hero{width:min(40rem,100%);margin:0 auto;text-align:center}
+.hero-kicker{margin:0 0 8px;font:12px/1 var(--om-font-mono);letter-spacing:.16em;text-transform:uppercase;color:var(--quiet)}
+.hero h2{margin:0;font:500 clamp(26px,3.2vw,40px)/1.15 var(--om-font-display);letter-spacing:-.03em}
+.hero-copy,.hero-note{margin:12px 0 0;font:16px/1.5 var(--om-font-sans);color:color-mix(in srgb, var(--ink) 82%, var(--quiet))}
+.hero-actions{margin:16px 0 0}
+.download{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:44px;padding:0 18px;border-radius:var(--om-radius-pill);background:var(--sky);color:var(--ground);font:600 15px/1.2 var(--om-font-sans);text-decoration:none}
+.download:hover{background:var(--ice)}
+.hero-note{font-size:14px}
+.hero-note a,.site-foot a{color:var(--ice)}
+.site-foot{width:min(40rem,100%);margin:28px auto 0;text-align:center;font:14px/1.5 var(--om-font-sans);color:color-mix(in srgb, var(--ink) 82%, var(--quiet))}
+.site-foot p{margin:0}
+.site-foot .domain{margin-top:4px;font:12px/1.4 var(--om-font-mono);letter-spacing:.08em;text-transform:lowercase;color:var(--quiet)}
 .app{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100vh}
 #rail{padding:28px 18px 40px;border-right:1px solid var(--line);background:var(--ground)}
 #rail .brand{margin:0;font:13px/1.3 var(--om-font-mono);letter-spacing:.16em;text-transform:uppercase}
@@ -191,8 +210,10 @@ body[data-ui="minimal"]:not([data-state="empty"]) #answer{border:0;background:tr
 body[data-ui="minimal"] #answer-label{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);clip-path:inset(50%);border:0}
 body[data-ui="minimal"] #reading{min-height:0;max-height:min(42vh,22rem)}
 body[data-ui="minimal"] .app{display:block}
-body[data-ui="minimal"] .stage{display:flex;flex-direction:column;align-items:center;justify-content:safe center;min-height:100vh;min-height:100dvh;width:min(880px,calc(100vw - 80px));margin:0 auto;padding:0;gap:18px}
+body[data-ui="minimal"] .stage{display:flex;flex-direction:column;align-items:center;justify-content:safe center;min-height:100vh;min-height:100dvh;width:min(880px,calc(100vw - 80px));margin:0 auto;padding:28px 0 36px;gap:18px;box-sizing:border-box}
 body[data-ui="minimal"]:not([data-state="empty"]) .stage{justify-content:flex-start;padding:28px 0 40px}
+body[data-ui="minimal"]:not([data-state="empty"]) .hero,
+body[data-ui="minimal"]:not([data-state="empty"]) .site-foot{display:none}
 body[data-ui="minimal"] .ask{width:100%}
 body[data-ui="minimal"] #helpers,
 body[data-ui="minimal"] #state-line,
@@ -207,6 +228,16 @@ body[data-state="loading"] .field{outline:2px solid var(--focus);outline-offset:
 body:not([data-ui="minimal"]) #first-run,
 body:not([data-state="empty"]) #first-run,
 body[data-ui="minimal"][data-state="empty"] #state-line{display:none}
+body[data-ui="minimal"][data-state="offline"] #work,
+body[data-ui="minimal"][data-state="ready"] #work{display:block;width:100%;margin:0}
+body[data-ui="minimal"] #sources,
+body[data-ui="minimal"] #citations,
+body[data-ui="minimal"] #notebook,
+body[data-ui="minimal"] #experiments{display:none}
+body[data-ui="minimal"] #answer{border:0;background:transparent;padding:0}
+body[data-ui="minimal"] #answer h2{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);clip-path:inset(50%);border:0}
+body[data-ui="minimal"] #reading{min-height:0;max-width:100%}
+body[data-ui="minimal"] #reading p{font:17px/1.5 var(--om-font-sans)}
 body[data-theme="ice"]{
   --panel:color-mix(in srgb, var(--ground) 94%, var(--ice));
   background:
@@ -243,10 +274,20 @@ body[data-theme="ocean"]{
   .voice{align-self:center}
   .app{grid-template-columns:1fr}
   #rail{border-right:0;border-bottom:1px solid var(--line)}
-  .stage{width:min(880px,calc(100% - 32px));padding:24px 0 48px}
+  .stage{width:min(880px,calc(100% - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));padding:max(24px, env(safe-area-inset-top, 0px)) 0 max(48px, env(safe-area-inset-bottom, 0px))}
   .piles,.book{grid-template-columns:1fr}
   .work{grid-template-columns:1fr}
-  body[data-ui="minimal"] .stage{width:min(880px,calc(100vw - 32px))}
+  body[data-ui="minimal"] .stage{
+    width:min(880px,calc(100% - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+    box-sizing:border-box;
+    min-height:100dvh;
+    min-height:100svh;
+    min-height:var(--vv-height, 100dvh);
+    justify-content:center;
+    justify-content:safe center;
+    padding:env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px)}
+  body[data-ui="minimal"]:not([data-state="empty"]) .stage{justify-content:flex-start;padding-top:max(16px, env(safe-area-inset-top, 0px));padding-bottom:max(24px, env(safe-area-inset-bottom, 0px))}
+  body[data-ui="minimal"] .field{position:sticky;top:calc(env(safe-area-inset-top, 0px) + var(--vv-offset, 0px));z-index:2}
 }
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{animation-duration:0.01ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important;scroll-behavior:auto !important}
@@ -260,8 +301,7 @@ body[data-theme="ocean"]{
 <aside id="rail" aria-label="Research">
   <p class="brand">Galion Research</p>
   <a id="to-one" href="/one">Galion One</a>
-  <p class="where">galion.app/research</p>
-  <p class="price">Ultra $220/€220 per month</p>
+  <p class="where">research.galion.app</p>
   <fieldset class="themes">
     <legend>Theme</legend>
     <label><input type="radio" name="theme" value="ink" checked><span>Ink</span></label>
@@ -270,7 +310,7 @@ body[data-theme="ocean"]{
     <label><input type="radio" name="theme" value="ocean"><span>Ocean</span></label>
   </fieldset>
   <p id="theme-live" class="sr" aria-live="polite"></p>
-  <p id="hermes-status" data-app="hermes" aria-live="polite">Hermes</p>
+  <p id="hermes-status" data-app="hermes" aria-live="polite">Research</p>
   <section id="history" aria-labelledby="history-label">
     <h2 id="history-label">Queue</h2>
     <ol id="history-list"></ol>
@@ -278,23 +318,32 @@ body[data-theme="ocean"]{
   </section>
 </aside>
 <main class="stage">
+  <section class="hero" aria-labelledby="hero-title">
+    <p class="hero-kicker">Coming very soon</p>
+    <h2 id="hero-title">Galion Research for live users is coming very soon.</h2>
+    <p class="hero-copy">Galion Research is a PhD-level research workspace, separate from Galion One, with its own memory. The alpha build is for Windows, macOS, and Linux. It is open source under the MIT License, developed by Galion Labs, and built in Rust.</p>
+    <p class="hero-actions"><a class="download" id="download-alpha" href="https://github.com/galion-studio/obsidian-open-mind/actions/workflows/openmind-desktop.yml">Download alpha on GitHub</a></p>
+    <p class="hero-note">No GitHub Release is published yet. Alpha builds for Windows, macOS, and Linux are workflow artifacts on that page, kept for 14 days. Install notes are in the <a href="https://github.com/galion-studio/obsidian-open-mind/blob/main/docs/desktop/README.md">desktop download docs</a>.</p>
+  </section>
   <header id="first-run">
     <p class="kicker">Galion Research</p>
     <h1>What are we looking into?</h1>
     <p id="first-run-line">A question starts here.</p>
   </header>
-  <p id="state-line" data-app="hermes" role="status">Hermes</p>
-  <p class="sr" id="product-line">Galion Research is the Hermes research app, a voice of Galion One. Voice to voice is on.</p>
+  <p id="state-line" data-app="hermes" role="status">Research</p>
+  <p class="sr" id="product-line">Galion Research is a PhD-level research workspace, separate from Galion One, with its own memory. Voice to voice is on.</p>
   <p class="sr" id="research-voice">Galion Research. What are we looking into?</p>
-  <p class="sr" id="voice-name">Research · Hermes</p>
+  <p class="sr" id="voice-name">Galion Research</p>
   <form class="ask" id="ask" action="#" method="post">
     <div class="field">
       <label class="sr" for="prompt">Ask</label>
-      <textarea id="prompt" name="prompt" rows="4" placeholder="Ask anything" autocomplete="off" enterkeyhint="send" aria-describedby="ask-hint file-note"></textarea>
-      <div class="tools">
+      <div class="composer">
+        <textarea id="prompt" name="prompt" rows="4" placeholder="Ask anything…" autocomplete="off" enterkeyhint="send" aria-describedby="ask-hint file-note"></textarea>
         <button type="button" id="add-file" aria-label="Add files">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
         </button>
+      </div>
+      <div class="tools">
         <button type="button" id="add-image" aria-label="Add an image">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="8.5" cy="9.5" r="1.3" fill="currentColor"/><path d="M4 16.2 8.8 12l3.2 2.6 3.1-3.4L20 16.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>
         </button>
@@ -318,6 +367,7 @@ body[data-theme="ocean"]{
       <canvas id="voice-dot" width="240" height="240" aria-hidden="true"></canvas>
     </button>
   </form>
+  <p class="price" id="price">Ultra $220/€220 per month</p>
   <p id="helpers" hidden aria-live="polite">Helpers are quiet.</p>
   <p id="loading" role="status" hidden>Reading the question.</p>
   <p id="error" role="alert" hidden></p>
@@ -371,6 +421,10 @@ body[data-theme="ocean"]{
       </article>
     </section>
   </div>
+  <footer class="site-foot">
+    <p>Developed by Galion Labs. <a href="https://github.com/galion-studio/hermes-research/blob/main/LICENSE">MIT License</a>.</p>
+    <p class="domain">research.galion.app</p>
+  </footer>
 </main>
 </div>
 <script>
@@ -493,6 +547,7 @@ function tone(id){
   var readingBody=document.getElementById("reading-body");
   var pagePinned=true;
   var settling=false;
+  var ownScroll=false;
   var slowTimer=0;
   readingPane.addEventListener("scroll", function(){
     if(settling) return;
@@ -512,10 +567,17 @@ function tone(id){
     if(!pagePinned) return;
     var box=readingPane.getBoundingClientRect();
     if(box.top>=0 && box.bottom<=window.innerHeight) return;
+    ownScroll=true;
     readingPane.scrollIntoView({block:"nearest", inline:"nearest", behavior:"auto"});
+    ownScroll=false;
   }
-  window.addEventListener("wheel", function(){ pagePinned=false; }, {passive:true});
-  window.addEventListener("touchmove", function(){ pagePinned=false; }, {passive:true});
+  function noteUserScroll(){
+    if(ownScroll||settling) return;
+    pagePinned=false;
+  }
+  window.addEventListener("wheel", noteUserScroll, {passive:true, capture:true});
+  window.addEventListener("touchmove", noteUserScroll, {passive:true, capture:true});
+  window.addEventListener("scroll", noteUserScroll, {passive:true});
   window.addEventListener("keydown", function(ev){
     if(ev.target&&ev.target.id==="prompt") return;
     if(ev.key==="ArrowDown"||ev.key==="ArrowUp"||ev.key==="PageDown"||ev.key==="PageUp"||ev.key==="Home"||ev.key==="End"||ev.key===" ") pagePinned=false;
@@ -527,6 +589,31 @@ function tone(id){
     var flying=document.body.getAttribute("data-state")==="loading";
     sendBtn.disabled=flying||!questionText();
   }
+  var placing=false;
+  function keepAskInView(){
+    if(placing||!window.matchMedia("(max-width: 800px)").matches) return;
+    var vv=window.visualViewport;
+    var top=vv?vv.offsetTop:0;
+    var height=vv?vv.height:window.innerHeight;
+    document.documentElement.style.setProperty("--vv-offset", Math.round(top)+"px");
+    document.documentElement.style.setProperty("--vv-height", Math.round(height)+"px");
+    var field=document.querySelector(".field");
+    if(!field) return;
+    var box=field.getBoundingClientRect();
+    var limitTop=top+8;
+    var limitBottom=top+height-8;
+    if(box.top>=limitTop&&box.bottom<=limitBottom) return;
+    placing=true;
+    ownScroll=true;
+    field.scrollIntoView({block:"nearest",inline:"nearest"});
+    ownScroll=false;
+    setTimeout(function(){ placing=false; }, 60);
+  }
+  function settleAsk(){
+    if(!pagePinned) return;
+    keepAskInView();
+    requestAnimationFrame(keepAskInView);
+  }
   function setBusy(on){
     if(slowTimer){ clearTimeout(slowTimer); slowTimer=0; }
     if(on){
@@ -536,6 +623,7 @@ function tone(id){
       loadingEl.textContent="Reading the question.";
       phoneLine("Reading the question.");
       syncSend();
+      settleAsk();
       slowTimer=setTimeout(function(){
         if(document.body.getAttribute("data-state")!=="loading") return;
         loadingEl.textContent="Still reading. Hermes is taking a moment.";
@@ -550,6 +638,7 @@ function tone(id){
     loadingEl.textContent="Reading the question.";
     if(document.body.getAttribute("data-state")==="loading") document.body.removeAttribute("data-state");
     syncSend();
+    settleAsk();
   }
   function clearInvalid(){
     prompt.removeAttribute("aria-invalid");
@@ -574,7 +663,7 @@ function tone(id){
     prompt.setAttribute("aria-invalid","true");
     prompt.setAttribute("aria-errormessage","error");
     document.body.setAttribute("data-state","error");
-    hermesStatus("Hermes · Error");
+    hermesStatus("Research · Error");
     phoneLine("");
     renderHanded("Handed");
     helpers.hidden=false;
@@ -590,11 +679,12 @@ function tone(id){
     fillPile("found", []);
     fillPile("inferred", []);
     fillPile("unknown", []);
+    settleAsk();
   }
   function carryOffline(q){
     clearError();
     document.body.setAttribute("data-state","offline");
-    hermesStatus("Hermes · Offline");
+    hermesStatus("Research · Offline");
     helpers.hidden=false;
     helpers.textContent="Helpers are quiet. Local knowledge carries the question.";
     document.getElementById("reading-question").textContent=q;
@@ -616,6 +706,7 @@ function tone(id){
     paintHistory([{status:"Offline", question:q}]);
     tone("local");
     renderHanded("Handed");
+    settleAsk();
   }
   function isOffline(j){
     return j.status==="Offline"||j.status==="Unreachable"||j.status==="Local";
@@ -657,7 +748,7 @@ function tone(id){
     var offline=isOffline(j);
     if(offline && !Array.isArray(j.sources)) markLocalSources();
     document.body.setAttribute("data-state", offline?"offline":"ready");
-    hermesStatus("Hermes · "+(j.status||"Returned"));
+    hermesStatus("Research · "+(j.status||"Returned"));
     helpers.hidden=false;
     helpers.textContent=offline?"Helpers are quiet. Local knowledge carries the question.":(j.helpers||"Helpers are quiet.");
     phoneLine(offline?"Hermes is offline. This answer is from what the desk already knows.":"");
@@ -665,6 +756,7 @@ function tone(id){
     revealReading();
     tone(offline?"local":"returned");
     renderHanded("Handed");
+    settleAsk();
   }
   function fillPile(id, rows){
     var list=document.getElementById(id+"-list");
@@ -684,9 +776,9 @@ function tone(id){
   var turnStarted=false;
   fetch("/research/hermes",{cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(j){
     if(turnStarted) return;
-    if(!j){ hermesStatus("Hermes · Offline"); return; }
-    hermesStatus("Hermes · "+(j.status||"Idle"));
-  }).catch(function(){ if(!turnStarted) hermesStatus("Hermes · Offline"); });
+    if(!j){ hermesStatus("Research · Offline"); return; }
+    hermesStatus("Research · "+(j.status||"Idle"));
+  }).catch(function(){ if(!turnStarted) hermesStatus("Research · Offline"); });
   fetch("/research/history",{cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(j){
     if(turnStarted||!j) return;
     if(Array.isArray(j.items)) paintHistory(j.items);
@@ -713,6 +805,7 @@ function tone(id){
         if(file.type&&file.type.indexOf("image/")===0){ chosen=file; break; }
       }
     }
+    // The file is still handed. A huge image only skips the thumbnail.
     if(!chosen||chosen.size>12*1024*1024){ clearPreview(); return; }
     createImageBitmap(chosen).then(function(bitmap){
       if(token!==previewToken){ bitmap.close(); return; }
@@ -812,7 +905,7 @@ function tone(id){
     clearError();
     pagePinned=true;
     setBusy(true);
-    hermesStatus("Hermes · Running");
+    hermesStatus("Research · Running");
     helpers.hidden=false;
     helpers.textContent="Helpers: reading, sources, notebook.";
     document.getElementById("reading-question").textContent=q;
@@ -858,6 +951,11 @@ function tone(id){
       .catch(function(){ carryOffline(q); });
   }
   prompt.addEventListener("input", syncSend);
+  prompt.addEventListener("focus", settleAsk);
+  window.addEventListener("resize", settleAsk);
+  if(window.visualViewport){
+    visualViewport.addEventListener("resize", settleAsk);
+  }
   prompt.addEventListener("keydown", function(ev){
     if(ev.key!=="Enter"||ev.shiftKey||ev.isComposing) return;
     ev.preventDefault();

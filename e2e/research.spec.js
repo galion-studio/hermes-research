@@ -127,12 +127,21 @@ test("desktop opens on the bare field", async ({ page }) => {
   await expect(page).toHaveTitle("Galion Research");
   await expect(page.locator("body")).toHaveAttribute("data-ui", "minimal");
   await expect(page.locator("body")).toHaveAttribute("data-silence", "off");
-  await expect(page.locator("#prompt")).toHaveAttribute("placeholder", "Ask anything");
+  await expect(page.locator("#prompt")).toHaveAttribute("placeholder", "Ask anything…");
   await expect(page.locator("#rail")).toBeHidden();
   await expect(page.locator("#work")).toBeHidden();
   await expect(page.locator("#add-image")).toBeHidden();
   await expect(page.locator("#commit-hint")).toBeHidden();
   await expect(page.getByRole("heading", { name: "What are we looking into?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Galion Research for live users is coming very soon." })).toBeVisible();
+  await expect(page.locator("#download-alpha")).toHaveAttribute(
+    "href",
+    "https://github.com/galion-studio/obsidian-open-mind/actions/workflows/openmind-desktop.yml",
+  );
+  await expect(page.getByRole("link", { name: "Download alpha on GitHub" })).toBeVisible();
+  await expect(page.locator(".site-foot")).toContainText("Developed by Galion Labs");
+  await expect(page.getByRole("link", { name: "MIT License" })).toBeVisible();
+  await expect(page.locator("#price")).toHaveText("Ultra $220/€220 per month");
   await expect(page.locator("#first-run-line")).toHaveText("A question starts here.");
   await expect(page.locator("#state-line")).toBeHidden();
   await expect(page.getByRole("button", { name: "Voice" })).toBeVisible();
@@ -143,6 +152,9 @@ test("desktop opens on the bare field", async ({ page }) => {
 
   const field = await page.locator(".field").boundingBox();
   const voice = await page.locator("#voice").boundingBox();
+  const plus = await page.locator("#add-file").boundingBox();
+  const prompt = await page.locator("#prompt").boundingBox();
+  expect(plus.x + plus.width).toBeLessThanOrEqual(prompt.x + 8);
   expect(voice.x).toBeGreaterThan(field.x + field.width - 8);
   expect(voice.width).toBeGreaterThan(80);
 
@@ -188,8 +200,12 @@ test("phone keeps the field, the disc, and the file plus", async ({ page }) => {
   await expect(page.locator("#add-file")).toBeVisible();
   const field = await page.locator(".field").boundingBox();
   const voice = await page.locator("#voice").boundingBox();
+  const plus = await page.locator("#add-file").boundingBox();
+  const prompt = await page.locator("#prompt").boundingBox();
   expect(field.width).toBeGreaterThan(280);
+  expect(plus.x + plus.width).toBeLessThanOrEqual(prompt.x + 8);
   expect(voice.y).toBeGreaterThan(field.y + field.height - 4);
+  await expect(page.getByRole("link", { name: "Download alpha on GitHub" })).toBeVisible();
   await saveShot(page, "research-minimal-phone.png");
 
   await page.getByRole("button", { name: "Show interface" }).click();
@@ -384,7 +400,7 @@ test("a late status read does not relabel an empty question", async ({ page }) =
   release();
   await page.waitForResponse("**/research/hermes");
   await expect(page.locator("body")).toHaveAttribute("data-state", "error");
-  await expect(page.locator("#hermes-status")).toHaveText("Hermes · Error");
+  await expect(page.locator("#hermes-status")).toHaveText("Research · Error");
 });
 
 test("a late history read does not wipe an offline answer", async ({ page }) => {
@@ -505,7 +521,7 @@ test("a question in flight shows loading, then the offline answer", async ({ pag
   await expect(page.locator("body")).toHaveAttribute("data-state", "loading");
   await expect(page.locator("#loading")).toHaveText("Reading the question.");
   await expect(page.locator("#answer")).toHaveAttribute("aria-busy", "true");
-  await expect(page.locator("#hermes-status")).toHaveText("Hermes · Running");
+  await expect(page.locator("#hermes-status")).toHaveText("Research · Running");
   await expect(page.locator("#error")).toBeHidden();
   await expect(page.locator("#helpers")).toHaveText("Helpers: reading, sources, notebook.");
   const loading = await seriousViolations(page);
@@ -533,7 +549,7 @@ test("an empty question is an error on the phone and the desktop", async ({ page
     await expect(page.locator("#prompt")).toHaveAttribute("aria-invalid", "true");
     await expect(page.locator("#prompt")).toHaveAttribute("aria-errormessage", "error");
     await expect(page.locator("#loading")).toBeHidden();
-    await expect(page.locator("#hermes-status")).toHaveText("Hermes · Error");
+    await expect(page.locator("#hermes-status")).toHaveText("Research · Error");
     const violations = await seriousViolations(page);
     expect(violations).toEqual([]);
     await saveShot(page, name, { fullPage: true });

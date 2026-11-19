@@ -282,7 +282,7 @@ test("a slow Hermes stays calm, then an offline answer is visible on the phone",
   await expect(page.locator("#loading")).toHaveText("Still reading. Hermes is taking a moment.");
   await expect(page.locator("#state-line")).toHaveText("Still reading. Hermes is taking a moment.");
   await expect(page.locator("#helpers")).toHaveText("The question is still with Hermes.");
-  await expect(page.locator("#hermes-status")).toHaveText("Hermes · Running");
+  await expect(page.locator("#hermes-status")).toHaveText("Research · Running");
   await expect(page.locator("#error")).toBeHidden();
   await expect(page.locator("body")).toHaveAttribute("data-state", "loading");
   release();
@@ -294,7 +294,7 @@ test("a slow Hermes stays calm, then an offline answer is visible on the phone",
   await expect(page.locator("#reading-body")).toBeVisible();
   await expect(page.locator("#sources")).toBeHidden();
   await expect(page.locator("#helpers")).toContainText("Local knowledge carries the question.");
-  await expect(page.locator("#hermes-status")).toHaveText("Hermes · Offline");
+  await expect(page.locator("#hermes-status")).toHaveText("Research · Offline");
   const promptTop = await page.evaluate(() => {
     window.scrollTo(0, 0);
     return document.getElementById("prompt").getBoundingClientRect().top;
@@ -405,7 +405,7 @@ test("an empty question stays an error in calm type", async ({ page }) => {
     await expect(page.locator("#error")).toBeVisible();
     await expect(page.locator("body")).toHaveAttribute("data-state", "error");
     await expect(page.locator("#loading")).toBeHidden();
-    await expect(page.locator("#hermes-status")).toHaveText("Hermes · Error");
+    await expect(page.locator("#hermes-status")).toHaveText("Research · Error");
     await expect(page.locator("#state-line")).not.toContainText("Offline");
     const sample = await page.locator("#error").evaluate((el) => {
       const color = getComputedStyle(el).color;

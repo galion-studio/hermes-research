@@ -10,6 +10,8 @@ import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 export const EXCERPT_BYTES = 1024;
+// Bytes of handed files the research turn may read back, across all files of one ask.
+export const HANDED_BYTES = 32 * 1024;
 export const QUESTION_PART_CAP = 8_192;
 export const PART_HEADER_CAP = 16 * 1024;
 export const UPLOAD_FORM = "The upload was not a form.";
@@ -18,6 +20,7 @@ export const UPLOAD_NAME = "The file name was not kept.";
 const FILE_FLAGS =
   fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | (fsConstants.O_NOFOLLOW || 0);
 const DIR_FLAGS = fsConstants.O_RDONLY | fsConstants.O_DIRECTORY | (fsConstants.O_NOFOLLOW || 0);
+const READ_FLAGS = fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW || 0) | (fsConstants.O_NONBLOCK || 0);
 
 const REPO_ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 
@@ -355,4 +358,65 @@ export async function prepareUploadDir(dir) {
     closeSync(fd);
   }
   return root;
+}
+
+// Read one stored upload back for the research turn.
+// The app owns the file (dir 0700, file 0600). Hermes never gets a path; it gets
+// bounded text through the chat request. Only a random 32-hex id inside the
+// upload dir is opened. A symlink, a hard link, a non-file, another owner, or a
+// group/other permission bit is refused. Binary bytes are not handed on.
+export async function readUpload(dir, file, cap = HANDED_BYTES) {
+  const empty = { text: "", bytes: 0, shown: 0, truncated: false, binary: false, ok: false };
+  const root = resolve(String(dir || ""));
+  const disk = diskPath(root, file && file.id);
+  if (!disk || sharedRoot(root) || !outsideRepo(root)) return empty;
+  let fh = null;
+  try {
+    if ((await realpath(root)) !== root) return empty;
+    const pre = await lstat(disk);
+    if (pre.isSymbolicLink() || !pre.isFile()) return empty;
+    fh = await open(disk, READ_FLAGS);
+    const st = await fh.stat();
+    if (!st.isFile() || st.ino !== pre.ino || st.dev !== pre.dev) return empty;
+    if (st.nlink !== 1) return empty;
+    if (typeof process.getuid === "function" && st.uid !== process.getuid()) return empty;
+    if (process.platform !== "win32" && (st.mode & 0o077) !== 0) return empty;
+    const limit = Math.max(0, Math.min(Number(cap) || 0, st.size));
+    // A binary file does not spend the text budget. When that budget is already
+    // gone, still look through the handoff window for a null so the file is not
+    // described as clipped text. The probe is not handed on.
+    const inspect = limit > 0 ? limit : Math.min(st.size, HANDED_BYTES);
+    const buf = Buffer.alloc(inspect);
+    let got = 0;
+    while (got < inspect) {
+      const { bytesRead } = await fh.read(buf, got, inspect - got, got);
+      if (!bytesRead) break;
+      got += bytesRead;
+    }
+    const slice = buf.subarray(0, got);
+    if (slice.includes(0)) return { ...empty, bytes: st.size, binary: true, ok: true };
+    if (limit === 0) {
+      return { text: "", bytes: st.size, shown: 0, truncated: st.size > 0, binary: false, ok: true };
+    }
+    let text = new TextDecoder("utf-8", { fatal: false }).decode(slice);
+    if (got < st.size) text = text.replace(/\uFFFD+$/, "");
+    text = text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "");
+    return { text, bytes: st.size, shown: got, truncated: got < st.size, binary: false, ok: true };
+  } catch {
+    return empty;
+  } finally {
+    if (fh) await fh.close().catch(() => {});
+  }
+}
+
+// Read every handed file of one ask within one shared byte budget.
+export async function readHanded(files, dir, budget = HANDED_BYTES) {
+  let left = Math.max(0, Number(budget) || 0);
+  const out = [];
+  for (const file of files || []) {
+    const read = await readUpload(dir, file, left);
+    left = Math.max(0, left - read.shown);
+    out.push({ ...file, content: read });
+  }
+  return out;
 }
