@@ -1,28 +1,12 @@
 // Galion Research. The page, the galion-one-voice /research backend, and Hermes.
 // The gateway key is read from the environment inside the Hermes client. It is not logged.
 
-import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
 import http from "node:http";
 import { fileURLToPath } from "node:url";
 
-import { withAnswerSurface } from "./answer.js";
-import { HELPERS_OFFLINE, createDesk } from "./desk.js";
-import {
-  acceptAnswer,
-  acceptHistory,
-  acceptStatus,
-  exchange,
-  failureState,
-  forwardConfig,
-  leaksKey,
-  wireReport,
-  withWireIndicator,
-} from "./forward.js";
 import { newNonce, postOriginAllowed, securityHeaders, uploadContentDisposition, withNonce } from "./headers.js";
-import { localKnowledge } from "./local.js";
-import { LLM_NAME, configFromEnv, isLoopback, keyState } from "./hermes.js";
+import { isLoopback } from "./loopback.js";
 import {
   BAD_JSON,
   BODY_LIMIT,
@@ -40,16 +24,25 @@ import {
   questionLength,
   rateLimitsFromEnv,
 } from "./limits.js";
-import { UPLOAD_FORM, UPLOAD_NAME, parseMultipart, readHanded, removeUploads, uploadDir } from "./uploads.js";
-
 export { BODY_LIMIT, QUESTION_LIMIT };
+
+let deskModules = null;
+function loadDesk() {
+  if (!deskModules) {
+    deskModules = Promise.all([
+      import("./answer.js"),
+      import("./desk.js"),
+      import("./forward.js"),
+      import("./hermes.js"),
+      import("./local.js"),
+      import("./uploads.js"),
+    ]).then(([answer, desk, forward, hermes, local, uploads]) => ({ answer, desk, forward, hermes, local, uploads }));
+  }
+  return deskModules;
+}
 
 export const BIND_HOST = "127.0.0.1";
 export const DEFAULT_PORT = 8787;
-
-const PAGE = withAnswerSurface(
-  withWireIndicator(readFileSync(fileURLToPath(new URL("../public/research.html", import.meta.url)))).toString("utf8"),
-);
 
 const ALLOW = Object.freeze({
   "/favicon.ico": "GET",
@@ -218,7 +211,34 @@ function sendProxied(res, proxied) {
   json(res, status, errorBody("upstream", UPSTREAM_REFUSED));
 }
 
-export function createApp(env = process.env, life = {}) {
+export async function createApp(env = process.env, life = {}) {
+  const loaded = await loadDesk();
+  const { withAnswerSurface } = loaded.answer;
+  const { HELPERS_OFFLINE, createDesk } = loaded.desk;
+  const {
+    acceptAnswer,
+    acceptHistory,
+    acceptStatus,
+    exchange,
+    failureState,
+    forwardConfig,
+    leaksKey,
+    wireReport,
+    withWireIndicator,
+  } = loaded.forward;
+  const { localKnowledge } = loaded.local;
+  const { LLM_NAME, configFromEnv, keyState } = loaded.hermes;
+  const { UPLOAD_FORM, UPLOAD_NAME, parseMultipart, readHanded, removeUploads, uploadDir } = loaded.uploads;
+  let page = null;
+  async function pageText() {
+    if (page == null) {
+      const { readFileSync } = await import("node:fs");
+      page = withAnswerSurface(
+        withWireIndicator(readFileSync(fileURLToPath(new URL("../public/research.html", import.meta.url)))).toString("utf8"),
+      );
+    }
+    return page;
+  }
   const hermes = configFromEnv(env);
   if (life.signal) hermes.signal = life.signal;
   const desk = createDesk(hermes);
@@ -312,7 +332,7 @@ export function createApp(env = process.env, life = {}) {
 
     if (method === "GET" && (path === "/" || path === "/research" || path === "/research/")) {
       const nonce = newNonce();
-      send(res, 200, "text/html; charset=utf-8", withNonce(PAGE, nonce), nonce);
+      send(res, 200, "text/html; charset=utf-8", withNonce(await pageText(), nonce), nonce);
       return;
     }
 
@@ -504,9 +524,28 @@ export function start(options = {}) {
   const env = options.env || process.env;
   const stop = new AbortController();
   const pending = new Set();
-  const handle = createApp(env, { signal: stop.signal });
+  let handlePromise = null;
   const server = http.createServer((req, res) => {
-    const task = Promise.resolve(handle(req, res));
+    const task = (async () => {
+      const url = new URL(req.url || "/", "http://127.0.0.1");
+      if ((req.method || "GET") === "GET" && url.pathname === "/health") {
+        const declared = declaredLength(req);
+        if (Number.isNaN(declared) || (declared != null && declared > BODY_LIMIT)) {
+          json(res, 413, errorBody("too-large", BODY_TOO_LONG));
+          req.resume();
+          return;
+        }
+        json(res, 200, { ok: true, service: "galion-research", bind: BIND_HOST }, {
+          Allow: "GET",
+          ...healthReadHeaders(req.headers.origin),
+        });
+        req.resume();
+        return;
+      }
+      if (!handlePromise) handlePromise = createApp(env, { signal: stop.signal });
+      const handle = await handlePromise;
+      return handle(req, res);
+    })();
     pending.add(task);
     task.finally(() => pending.delete(task));
   });
@@ -536,8 +575,9 @@ export function start(options = {}) {
 // Same wait as scripts/check-health.js. Not a product limit.
 const NOTIFY_MS = 2_000;
 
-function signalSystemd(arg, env) {
-  if (!env || !env.NOTIFY_SOCKET) return Promise.resolve(true);
+async function signalSystemd(arg, env) {
+  if (!env || !env.NOTIFY_SOCKET) return true;
+  const { spawn } = await import("node:child_process");
   return new Promise((resolve) => {
     let settled = false;
     const done = (ok) => {
