@@ -10,11 +10,11 @@ const FACTS = [
   {
     when: (q) =>
       /who are you|what are you|your name|galion research|what are we looking into/.test(q),
-    say: "Galion Research. What are we looking into? Galion Research is a voice of Galion One. Hermes is the research agent behind this desk.",
+    say: "Galion Research. What are we looking into? Galion Research is a PhD-level research workspace, separate from Galion One, with its own memory. Developed by Galion Labs. Built in Rust. Open source under the MIT License.",
   },
   {
     when: (q) => /galion one/.test(q),
-    say: "Galion One is the product. Galion Research is a voice inside it, and this workspace. It connects to Galion One. It is not a copy of it.",
+    say: "Galion One and Galion Research are different products. Galion Research is a PhD-level research workspace with its own memory. This desk can hand a voice across to Galion One. It is not a copy of the One page.",
   },
   {
     when: (q) => /ultra|per month|what does it cost|price/.test(q),
@@ -34,7 +34,7 @@ const FACTS = [
   },
   {
     when: (q) => /hermes|gateway key|api key/.test(q),
-    say: "Hermes is the research agent. The gateway key stays in the server environment.",
+    say: "The research engine runs on this machine. The gateway key stays in the server environment.",
   },
 ];
 

@@ -1,8 +1,8 @@
 # Galion Research
 
-Galion One is the product. Galion Research is a voice inside it, and this workspace. It connects to Galion One. It is not a copy of the One page.
+Galion Research is a PhD-level research workspace, separate from Galion One, with its own memory. This repository is the Galion Research web app for `research.galion.app`. It can hand a voice across to Galion One. It is not a copy of the One page.
 
-The desk is the page already live at [galion.app/research](https://galion.app/research), from [galion-studio/galion-one-voice#128](https://github.com/galion-studio/galion-one-voice/pull/128). Ink `#0B0F14`, Ice `#B8E8FF`, Sky `#58C4FF`, Ocean `#0B5FA5`. The field says Ask anything. Beside it, a voice disc and a file plus. Show interface opens Sources, Citations, the Notebook (Found, Inferred, Unknown), and an experiment card that asks before anything runs. Hide interface returns to the bare field.
+The desk uses Ink `#0B0F14`, Ice `#B8E8FF`, Sky `#58C4FF`, Ocean `#0B5FA5`. The field says Ask anything…. The file plus sits on the left of that field and the voice disc sits on the right. Show interface opens Sources, Citations, the Notebook (Found, Inferred, Unknown), and an experiment card that asks before anything runs. Hide interface returns to the bare field. The page says Galion Research for live users is coming very soon, and links to the desktop alpha workflow because no GitHub Release is published yet.
 
 The voice is: Galion Research. What are we looking into? The handoff from Galion One is voice-only. No letter is drawn on the disc. The disc is Ice, Sky, and Ocean.
 
@@ -10,7 +10,7 @@ The rail offers four themes: Ink, Ice, Sky, and Ocean. Ink is the one the desk o
 
 Ultra is $220/€220 per month. That line is copy, not a checkout.
 
-Hermes is the research agent. This process does not ship a voice model, a clone, or an audio file. Research cues are 432 Hz just-intonation ratios in `src/cues.js` and on the page. Definitions only. Silence, and `?silence=1`, keeps those cues quiet. The Silence control sits on the field. Typing in the field does not toggle it. `s` does, when focus is outside the field.
+The research engine runs on this machine. Its crates are still named hermes-rs and hermes-gateway. This process does not ship a voice model, a clone, or an audio file. Research cues are 432 Hz just-intonation ratios in `src/cues.js` and on the page. Definitions only. Silence, and `?silence=1`, keeps those cues quiet. The Silence control sits on the field. Typing in the field does not toggle it. `s` does, when focus is outside the field.
 
 The 7 October 2026 notes are kept in [docs/archive](docs/archive/).
 
@@ -45,9 +45,9 @@ The JSON shape is `galion-research/1`: `status`, `reply`, `citations` as `{ "n",
 
 `GET /one` redirects to Galion One (`GALION_ONE_URL`, default `https://galion.app/one`). That is the product link. This repo does not draw the One dot.
 
-### Hermes
+### Research engine
 
-When `GALION_RESEARCH_URL` is unset, or that origin cannot be reached, Hermes is the engine on this machine.
+When `GALION_RESEARCH_URL` is unset, or that origin cannot be reached, the research engine on this machine answers. The engine crates and the variables below still use the historical name.
 
 | Variable | Role |
 | --- | --- |
@@ -128,7 +128,9 @@ On the laptop, `scripts/laptop-ci/research-e2e.ps1` (installed as `G:\galion\ci\
 
 ## Deploy kit
 
-The desk is not deployed. The kit in this repo is the hardened unit, the env example, the health check, and the release layout. See [docs/DEPLOY.md](docs/DEPLOY.md). The scripts refuse `--execute`. Nothing in this repository connects to a host.
+The desk is not deployed. The kit in this repo is the hardened unit, the env example, the health check, and the release layout. See [docs/DEPLOY.md](docs/DEPLOY.md). The scripts refuse `--execute`. Nothing in this repository connects to a host, and nothing here changes DNS.
+
+To serve this app at `research.galion.app`, a person adds a DNS record for that name to the same front that already reaches the machine, then points that host at this process on loopback port 8787. Same-origin posts on `https://research.galion.app` are already allowed. This repository does not make that DNS change and does not edit the front.
 
 The Pi 5 seed is a single executable of this same desk for `linux-arm64` and `linux-x64`. The workflow that builds it smoke-starts the arm64 binary under qemu-user. It does not boot a Raspberry Pi. See [docs/PI5-SEED.md](docs/PI5-SEED.md).
 

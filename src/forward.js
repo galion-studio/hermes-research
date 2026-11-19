@@ -282,10 +282,10 @@ const WIRE_STYLE =
   "#wire-status{margin:0 0 18px;font:13px/1.4 system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:color-mix(in srgb, var(--amber) 75%, var(--ink))}";
 
 const WIRE_NODE =
-  '<p id="wire-status" data-wire="openmind voice" aria-live="polite">One · unset · Voice · unset · Hermes · offline</p>';
+  '<p id="wire-status" data-wire="openmind voice" aria-live="polite">One · unset · Voice · unset · Engine · offline</p>';
 
 const WIRE_SCRIPT =
-  'fetch("/research/wire",{cache:"no-store"}).then(function(r){return r.ok?r.json():null;}).then(function(j){var el=document.getElementById("wire-status");if(!el)return;var u=j&&j.upstreams||{};var o=u.openmind&&u.openmind.state||"unset";var v=u.voice&&u.voice.state||"unset";var h=j&&j.hermes&&j.hermes.state||"offline";el.textContent="One · "+o+" · Voice · "+v+" · Hermes · "+h;}).catch(function(){var el=document.getElementById("wire-status");if(el)el.textContent="One · down · Voice · down · Hermes · offline";});';
+  'fetch("/research/wire",{cache:"no-store"}).then(function(r){return r.ok?r.json():null;}).then(function(j){var el=document.getElementById("wire-status");if(!el)return;var u=j&&j.upstreams||{};var o=u.openmind&&u.openmind.state||"unset";var v=u.voice&&u.voice.state||"unset";var h=j&&j.hermes&&j.hermes.state||"offline";el.textContent="One · "+o+" · Voice · "+v+" · Engine · "+h;}).catch(function(){var el=document.getElementById("wire-status");if(el)el.textContent="One · down · Voice · down · Engine · offline";});';
 
 export function withWireIndicator(html) {
   let text = Buffer.isBuffer(html) ? html.toString("utf8") : String(html);
