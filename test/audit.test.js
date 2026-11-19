@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 function audit(cwd) {
-  const run = spawnSync("npm", ["audit", "--json"], { cwd, encoding: "utf8" });
+  const run = spawnSync("npm", ["audit", "--json", "--audit-level=high"], { cwd, encoding: "utf8" });
   let report = null;
   try {
     report = JSON.parse(run.stdout || "");

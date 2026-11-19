@@ -56,6 +56,7 @@ export function contentSecurityPolicy(nonce) {
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${token}'`,
+    "script-src-attr 'none'",
     `style-src 'self' 'nonce-${token}'`,
     "img-src 'self' data:",
     "connect-src 'self'",
@@ -67,6 +68,41 @@ export function contentSecurityPolicy(nonce) {
     "frame-ancestors 'none'",
     "frame-src 'none'",
   ].join("; ");
+}
+
+// Always attachment. A dotfile stays. A path, a quote, and a line break do not.
+// This is not a type list and not a size cap.
+export function attachmentDisposition(name) {
+  const base = String(name ?? "").replace(/\\/g, "/").split("/").pop() ?? "";
+  let clean = "";
+  for (const ch of base) {
+    const code = ch.codePointAt(0);
+    if (code < 32 || code === 127) continue;
+    if (ch === '"' || ch === ";" || ch === "\\") {
+      clean += "_";
+      continue;
+    }
+    clean += ch;
+  }
+  clean = clean.trim();
+  if (!clean || clean === "." || clean === "..") clean = "upload";
+  let ascii = "";
+  for (const ch of clean) {
+    const code = ch.codePointAt(0);
+    ascii += code >= 0x20 && code <= 0x7e ? ch : "_";
+  }
+  ascii = ascii.trim() || "upload";
+  if (ascii === "." || ascii === "..") ascii = "upload";
+  const star = encodeURIComponent(clean).replace(
+    /[!'()*]/g,
+    (ch) => `%${ch.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${star}`;
+}
+
+export function uploadContentDisposition(files) {
+  const named = (files || []).find((file) => file && file.name);
+  return named ? attachmentDisposition(named.name) : null;
 }
 
 export function securityHeaders(nonce) {

@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { contentSecurityPolicy, postOriginAllowed, securityHeaders, withNonce } from "../../src/headers.js";
+import {
+  attachmentDisposition,
+  contentSecurityPolicy,
+  postOriginAllowed,
+  securityHeaders,
+  uploadContentDisposition,
+  withNonce,
+} from "../../src/headers.js";
 import { BIND_HOST, DEFAULT_PORT, listenTarget, newSessionId, sessionCookie, sessionToken } from "../../src/server.js";
 
 describe("response headers", () => {
@@ -9,6 +16,7 @@ describe("response headers", () => {
     const nonce = "abcDEF789_-nonce";
     const csp = contentSecurityPolicy(nonce);
     assert.match(csp, new RegExp(`script-src 'self' 'nonce-${nonce}'`));
+    assert.match(csp, /script-src-attr 'none'/);
     assert.match(csp, new RegExp(`style-src 'self' 'nonce-${nonce}'`));
     assert.match(csp, /frame-ancestors 'none'/);
     assert.match(csp, /object-src 'none'/);
@@ -27,6 +35,47 @@ describe("response headers", () => {
     assert.match(html, new RegExp(`<style nonce="${nonce}">`));
     assert.match(html, new RegExp(`<script nonce="${nonce}">`));
     assert.throws(() => withNonce("<script></script>", "bad nonce"), /nonce/);
+  });
+
+  it("attaches a served upload without a type or size gate", () => {
+    const dot = attachmentDisposition(".notes");
+    assert.match(dot, /^attachment;/);
+    assert.equal(dot.includes("inline"), false);
+    assert.match(dot, /filename="\.notes"/);
+    assert.match(dot, /filename\*=UTF-8''\.notes$/);
+    assert.equal(dot.includes("\r"), false);
+    assert.equal(dot.includes("\n"), false);
+
+    const html = attachmentDisposition("<img src=x onerror=alert(1)>.html");
+    assert.match(html, /^attachment; filename="<img src=x onerror=alert\(1\)>\.html"; /);
+    assert.equal(html.includes("inline"), false);
+    assert.equal(html.includes("\r"), false);
+    assert.equal(html.includes("\n"), false);
+
+    const pathName = attachmentDisposition("../../etc/passwd");
+    assert.match(pathName, /filename="passwd"/);
+    assert.equal(pathName.includes(".."), false);
+
+    const injected = attachmentDisposition('ok\r\nContent-Type: text/html"; filename="evil.html');
+    assert.equal(injected.includes("\r"), false);
+    assert.equal(injected.includes("\n"), false);
+    assert.equal(injected.includes('filename="evil.html"'), false);
+    assert.match(injected, /^attachment; filename="[^"]*"; filename\*=UTF-8''[^;\r\n]+$/);
+
+    const broken = attachmentDisposition('notes;evil="x".txt');
+    assert.match(broken, /filename="notes_evil=_x_.txt"/);
+    assert.equal(broken.includes(";evil"), false);
+
+    assert.match(attachmentDisposition("."), /filename="upload"/);
+    assert.match(attachmentDisposition(".."), /filename="upload"/);
+    assert.match(attachmentDisposition(""), /filename="upload"/);
+    const cafe = attachmentDisposition("caf\u00e9.txt");
+    assert.match(cafe, /filename="caf_.txt"/);
+    assert.match(cafe, /filename\*=UTF-8''caf%C3%A9\.txt$/);
+
+    assert.equal(uploadContentDisposition([]), null);
+    assert.equal(uploadContentDisposition([{ name: "" }, { name: ".env" }]), attachmentDisposition(".env"));
+    assert.equal(securityHeaders("abcDEF789_-nonce")["Content-Disposition"], undefined);
   });
 });
 

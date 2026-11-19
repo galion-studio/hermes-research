@@ -31,7 +31,7 @@ function listenHexes(file, port) {
 }
 
 function audit(cwd) {
-  const run = spawnSync("npm", ["audit", "--json"], { cwd, encoding: "utf8" });
+  const run = spawnSync("npm", ["audit", "--json", "--audit-level=high"], { cwd, encoding: "utf8" });
   return { status: run.status, report: JSON.parse(run.stdout || "{}") };
 }
 

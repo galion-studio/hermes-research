@@ -19,7 +19,7 @@ import {
   wireReport,
   withWireIndicator,
 } from "./forward.js";
-import { newNonce, postOriginAllowed, securityHeaders, withNonce } from "./headers.js";
+import { newNonce, postOriginAllowed, securityHeaders, uploadContentDisposition, withNonce } from "./headers.js";
 import { localKnowledge } from "./local.js";
 import { LLM_NAME, configFromEnv, isLoopback, keyState } from "./hermes.js";
 import {
@@ -381,6 +381,8 @@ export function createApp(env = process.env) {
         json(res, tooLarge ? 413 : 400, errorBody(tooLarge ? "too-large" : "empty", tooLarge ? QUESTION_TOO_LONG : EMPTY_QUESTION));
         return;
       }
+      const disposition = uploadContentDisposition(parsed.files);
+      const uploadHeaders = disposition ? { "Content-Disposition": disposition } : undefined;
       const body = await whileAsking(async (mark) => {
         // The desk reads its own private upload back by random id. Hermes gets text, never a path.
         const handed = hermes.attached ? await readHanded(parsed.files, dir) : parsed.files;
@@ -405,10 +407,10 @@ export function createApp(env = process.env) {
           sources: [{ label: "Local", text: "What is already known stays marked local." }],
           helpers: HELPERS_OFFLINE,
           key: keyState(hermes.key),
-        });
+        }, uploadHeaders);
         return;
       }
-      json(res, 200, body);
+      json(res, 200, body, uploadHeaders);
       return;
     }
 
