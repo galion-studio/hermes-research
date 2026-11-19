@@ -121,6 +121,24 @@ textarea::placeholder{color:color-mix(in srgb, var(--ice) 72%, var(--ground))}
 #send:hover:not(:disabled){background:radial-gradient(circle at 50% 42%, var(--ice), var(--ice) 46%, var(--sky))}
 #send:disabled{background:transparent;color:var(--quiet);border-color:color-mix(in srgb, var(--ink) 28%, var(--ground));box-shadow:none;cursor:default}
 .price{margin:22px 0 0;text-align:center;font:13px/1.4 var(--om-font-sans);letter-spacing:.08em;color:var(--quiet)}
+.composer{display:grid;grid-template-columns:44px minmax(0,1fr);column-gap:12px;align-items:start}
+.composer textarea{grid-column:2;grid-row:1}
+.composer #add-file{grid-column:1;grid-row:1}
+#add-file{appearance:none;display:grid;place-items:center;width:44px;height:44px;margin:0;padding:0;cursor:pointer;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--quiet)}
+#add-file:hover,#add-file:focus-visible{border-color:var(--sky);color:var(--ink)}
+#add-file svg{width:22px;height:22px;display:block}
+.hero{width:min(40rem,100%);margin:0 auto;text-align:center}
+.hero-kicker{margin:0 0 8px;font:12px/1 var(--om-font-mono);letter-spacing:.16em;text-transform:uppercase;color:var(--quiet)}
+.hero h2{margin:0;font:500 clamp(26px,3.2vw,40px)/1.15 var(--om-font-display);letter-spacing:-.03em}
+.hero-copy,.hero-note{margin:12px 0 0;font:16px/1.5 var(--om-font-sans);color:color-mix(in srgb, var(--ink) 82%, var(--quiet))}
+.hero-actions{margin:16px 0 0}
+.download{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:44px;padding:0 18px;border-radius:var(--om-radius-pill);background:var(--sky);color:var(--ground);font:600 15px/1.2 var(--om-font-sans);text-decoration:none}
+.download:hover{background:var(--ice)}
+.hero-note{font-size:14px}
+.hero-note a,.site-foot a{color:var(--ice)}
+.site-foot{width:min(40rem,100%);margin:28px auto 0;text-align:center;font:14px/1.5 var(--om-font-sans);color:color-mix(in srgb, var(--ink) 82%, var(--quiet))}
+.site-foot p{margin:0}
+.site-foot .domain{margin-top:4px;font:12px/1.4 var(--om-font-mono);letter-spacing:.08em;text-transform:lowercase;color:var(--quiet)}
 .app{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100vh}
 #rail{padding:28px 18px 40px;border-right:1px solid var(--line);background:var(--ground)}
 #rail .brand{margin:0;font:13px/1.3 var(--om-font-mono);letter-spacing:.16em;text-transform:uppercase}
@@ -177,7 +195,7 @@ body[data-ui="minimal"] .work,
 body[data-ui="minimal"] #add-image,
 body[data-ui="minimal"] #commit-hint{display:none}
 body[data-ui="minimal"] .app{display:block}
-body[data-ui="minimal"] .stage{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;width:min(880px,calc(100vw - 80px));margin:0 auto;padding:0;gap:18px}
+body[data-ui="minimal"] .stage{display:flex;flex-direction:column;align-items:center;justify-content:safe center;min-height:100vh;min-height:100dvh;width:min(880px,calc(100vw - 80px));margin:0 auto;padding:28px 0 36px;gap:18px;box-sizing:border-box}
 body[data-ui="minimal"] .ask{width:100%}
 body[data-ui="minimal"] #helpers,
 body[data-ui="minimal"] #state-line,
@@ -264,8 +282,7 @@ body[data-theme="ocean"]{
 <aside id="rail" aria-label="Research">
   <p class="brand">Galion Research</p>
   <a id="to-one" href="/one">Galion One</a>
-  <p class="where">galion.app/research</p>
-  <p class="price">Ultra $220/€220 per month</p>
+  <p class="where">research.galion.app</p>
   <fieldset class="themes">
     <legend>Theme</legend>
     <label><input type="radio" name="theme" value="ink" checked><span>Ink</span></label>
@@ -274,7 +291,7 @@ body[data-theme="ocean"]{
     <label><input type="radio" name="theme" value="ocean"><span>Ocean</span></label>
   </fieldset>
   <p id="theme-live" class="sr" aria-live="polite"></p>
-  <p id="hermes-status" data-app="hermes" aria-live="polite">Hermes</p>
+  <p id="hermes-status" data-app="hermes" aria-live="polite">Research</p>
   <section id="history" aria-labelledby="history-label">
     <h2 id="history-label">Queue</h2>
     <ol id="history-list"></ol>
@@ -282,23 +299,32 @@ body[data-theme="ocean"]{
   </section>
 </aside>
 <main class="stage">
+  <section class="hero" aria-labelledby="hero-title">
+    <p class="hero-kicker">Coming very soon</p>
+    <h2 id="hero-title">Galion Research for live users is coming very soon.</h2>
+    <p class="hero-copy">Galion Research is a PhD-level research workspace, separate from Galion One, with its own memory. The alpha build is for Windows, macOS, and Linux. It is open source under the MIT License, developed by Galion Labs, and built in Rust.</p>
+    <p class="hero-actions"><a class="download" id="download-alpha" href="https://github.com/galion-studio/obsidian-open-mind/actions/workflows/openmind-desktop.yml">Download alpha on GitHub</a></p>
+    <p class="hero-note">No GitHub Release is published yet. Alpha builds for Windows, macOS, and Linux are workflow artifacts on that page, kept for 14 days. Install notes are in the <a href="https://github.com/galion-studio/obsidian-open-mind/blob/main/docs/desktop/README.md">desktop download docs</a>.</p>
+  </section>
   <header id="first-run">
     <p class="kicker">Galion Research</p>
     <h1>What are we looking into?</h1>
     <p id="first-run-line">A question starts here.</p>
   </header>
-  <p id="state-line" data-app="hermes">Hermes</p>
-  <p class="sr" id="product-line">Galion Research is the Hermes research app, a voice of Galion One. Voice to voice is on.</p>
+  <p id="state-line" data-app="hermes">Research</p>
+  <p class="sr" id="product-line">Galion Research is a PhD-level research workspace, separate from Galion One, with its own memory. Voice to voice is on.</p>
   <p class="sr" id="research-voice">Galion Research. What are we looking into?</p>
-  <p class="sr" id="voice-name">Research · Hermes</p>
+  <p class="sr" id="voice-name">Galion Research</p>
   <form class="ask" id="ask" action="#" method="post">
     <div class="field">
       <label class="sr" for="prompt">Ask</label>
-      <textarea id="prompt" name="prompt" rows="4" placeholder="Ask anything" autocomplete="off" enterkeyhint="send" aria-describedby="ask-hint"></textarea>
-      <div class="tools">
+      <div class="composer">
+        <textarea id="prompt" name="prompt" rows="4" placeholder="Ask anything…" autocomplete="off" enterkeyhint="send" aria-describedby="ask-hint"></textarea>
         <button type="button" id="add-file" aria-label="Add files">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
         </button>
+      </div>
+      <div class="tools">
         <button type="button" id="add-image" aria-label="Add an image">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="8.5" cy="9.5" r="1.3" fill="currentColor"/><path d="M4 16.2 8.8 12l3.2 2.6 3.1-3.4L20 16.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>
         </button>
@@ -317,6 +343,7 @@ body[data-theme="ocean"]{
       <canvas id="voice-dot" width="240" height="240" aria-hidden="true"></canvas>
     </button>
   </form>
+  <p class="price" id="price">Ultra $220/€220 per month</p>
   <p id="helpers" hidden aria-live="polite">Helpers are quiet.</p>
   <p id="loading" role="status" hidden>Reading the question.</p>
   <p id="error" role="alert" hidden></p>
@@ -370,6 +397,10 @@ body[data-theme="ocean"]{
       </article>
     </section>
   </div>
+  <footer class="site-foot">
+    <p>Developed by Galion Labs. <a href="https://github.com/galion-studio/hermes-research/blob/main/LICENSE">MIT License</a>.</p>
+    <p class="domain">research.galion.app</p>
+  </footer>
 </main>
 </div>
 <script>
@@ -551,7 +582,7 @@ function tone(id){
     prompt.setAttribute("aria-invalid","true");
     prompt.setAttribute("aria-errormessage","error");
     document.body.setAttribute("data-state","error");
-    hermesStatus("Hermes · Error");
+    hermesStatus("Research · Error");
     helpers.hidden=false;
     helpers.textContent="Helpers are quiet.";
     fillList(document.getElementById("arriving-list"), []);
@@ -568,7 +599,7 @@ function tone(id){
   function carryOffline(q){
     clearError();
     document.body.setAttribute("data-state","offline");
-    hermesStatus("Hermes · Offline");
+    hermesStatus("Research · Offline");
     helpers.hidden=false;
     helpers.textContent="Helpers are quiet. Local knowledge carries the question.";
     document.getElementById("reading-question").textContent=q;
@@ -628,7 +659,7 @@ function tone(id){
     var offline=isOffline(j);
     if(offline && !Array.isArray(j.sources)) markLocalSources();
     document.body.setAttribute("data-state", offline?"offline":"ready");
-    hermesStatus("Hermes · "+(j.status||"Returned"));
+    hermesStatus("Research · "+(j.status||"Returned"));
     helpers.hidden=false;
     helpers.textContent=offline?"Helpers are quiet. Local knowledge carries the question.":(j.helpers||"Helpers are quiet.");
     tone(offline?"local":"returned");
@@ -652,9 +683,9 @@ function tone(id){
   var turnStarted=false;
   fetch("/research/hermes",{cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(j){
     if(turnStarted) return;
-    if(!j){ hermesStatus("Hermes · Offline"); return; }
-    hermesStatus("Hermes · "+(j.status||"Idle"));
-  }).catch(function(){ if(!turnStarted) hermesStatus("Hermes · Offline"); });
+    if(!j){ hermesStatus("Research · Offline"); return; }
+    hermesStatus("Research · "+(j.status||"Idle"));
+  }).catch(function(){ if(!turnStarted) hermesStatus("Research · Offline"); });
   fetch("/research/history",{cache:"no-store"}).then(function(r){ return r.ok?r.json():null; }).then(function(j){
     if(turnStarted||!j) return;
     if(Array.isArray(j.items)) paintHistory(j.items);
@@ -725,7 +756,7 @@ function tone(id){
     if(Array.from(q).length>QUESTION_LIMIT){ showError("The question is longer than 2000 characters."); return; }
     clearError();
     setBusy(true);
-    hermesStatus("Hermes · Running");
+    hermesStatus("Research · Running");
     helpers.hidden=false;
     helpers.textContent="Helpers: reading, sources, notebook.";
     fillList(document.getElementById("arriving-list"), [q]);
