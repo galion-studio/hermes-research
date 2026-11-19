@@ -3,7 +3,7 @@
 
 import { randomBytes } from "node:crypto";
 
-import { isLoopback } from "./hermes.js";
+import { isLoopback } from "./loopback.js";
 
 const PUBLIC_ORIGINS = new Set([
   "https://galion.app",
