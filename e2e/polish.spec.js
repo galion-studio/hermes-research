@@ -40,7 +40,7 @@ async function openDesk(page, viewport) {
 test("controls are at least 44px on a phone and on the desktop", async ({ page }) => {
   for (const viewport of viewports) {
     await openDesk(page, viewport);
-    const selectors = ["#add-file", "#add-image", "#silence", "#ui-toggle", "#voice", "#to-one", "#allow-experiment"];
+    const selectors = ["#add-file", "#add-image", "#silence", "#ui-toggle", "#send", "#voice", "#to-one", "#allow-experiment"];
     for (const selector of selectors) {
       const box = await page.locator(selector).boundingBox();
       expect(box, selector).toBeTruthy();
@@ -69,6 +69,7 @@ test("keyboard focus rings stay Sky, 2px, and inside the phone width", async ({ 
   ]) {
     await openDesk(page, viewport);
     const controls = ["#add-file", "#add-image", "#silence", "#ui-toggle", "#voice", "#to-one", "#allow-experiment", "#prompt"];
+    await page.locator("#prompt").fill("a");
     for (const selector of controls) {
       const ring = await page.locator(selector).evaluate((el) => {
         const target = el.id === "prompt" ? el.closest(".field") : el;
@@ -99,6 +100,28 @@ test("keyboard focus rings stay Sky, 2px, and inside the phone width", async ({ 
       expect(ground, ring.field).not.toBeNull();
       expect(contrast(ink, ground), selector).toBeGreaterThanOrEqual(3);
     }
+    const send = await page.locator("#send").evaluate((el) => {
+      el.focus({ focusVisible: true });
+      const style = getComputedStyle(el);
+      const box = el.getBoundingClientRect();
+      const width = Number.parseFloat(style.outlineWidth);
+      const offset = Number.parseFloat(style.outlineOffset);
+      return {
+        style: style.outlineStyle,
+        width,
+        offset,
+        disabled: el.disabled,
+        left: box.left - offset - width,
+        right: box.right + offset + width,
+        viewport: window.innerWidth,
+      };
+    });
+    expect(send.disabled).toBe(false);
+    expect(send.style).toBe("solid");
+    expect(send.width).toBeGreaterThanOrEqual(2);
+    expect(send.offset).toBeGreaterThanOrEqual(3);
+    expect(send.left).toBeGreaterThanOrEqual(-1);
+    expect(send.right).toBeLessThanOrEqual(send.viewport + 1);
     await page.locator("#silence").evaluate((el) => el.focus({ focusVisible: true }));
     await page.locator("#silence").click();
     const pressed = await page.locator("#silence").evaluate((el) => {
@@ -233,4 +256,173 @@ test("a file stays named while the question is in flight", async ({ page }) => {
   release();
   await expect(page.locator("#file-note")).toHaveText("Handed 1 file.");
   await expect(page.locator("#reading-body")).toContainText("field-note.txt");
+});
+
+test("a slow Hermes stays calm, then an offline answer is visible on the phone", async ({ page }) => {
+  await page.clock.install();
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/research/ask", async (route) => {
+    await gate;
+    await route.abort();
+  });
+  await page.setViewportSize({ width: 390, height: 700 });
+  await page.goto("/research");
+  await expect(page.locator("#hermes-status")).toContainText("Offline");
+  await page.locator("#prompt").fill("Who are you?");
+  await page.locator("#prompt").press("Enter");
+  await expect(page.locator("#loading")).toHaveText("Reading the question.");
+  await expect(page.locator("#state-line")).toHaveText("Reading the question.");
+  await expect(page.locator("#reading")).toBeVisible();
+  await expect(page.locator("#sources")).toBeHidden();
+  await expect(page.locator("#error")).toBeHidden();
+  await page.clock.fastForward(8000);
+  await expect(page.locator("#loading")).toHaveText("Still reading. Hermes is taking a moment.");
+  await expect(page.locator("#state-line")).toHaveText("Still reading. Hermes is taking a moment.");
+  await expect(page.locator("#helpers")).toHaveText("The question is still with Hermes.");
+  await expect(page.locator("#hermes-status")).toHaveText("Research · Running");
+  await expect(page.locator("#error")).toBeHidden();
+  await expect(page.locator("body")).toHaveAttribute("data-state", "loading");
+  release();
+  await expect(page.locator("body")).toHaveAttribute("data-state", "offline");
+  await expect(page.locator("#loading")).toBeHidden();
+  await expect(page.locator("#error")).toBeHidden();
+  await expect(page.locator("#state-line")).toHaveText("Hermes is offline. This answer is from what the desk already knows.");
+  await expect(page.locator("#reading-body")).toContainText("Offline");
+  await expect(page.locator("#reading-body")).toBeVisible();
+  await expect(page.locator("#sources")).toBeHidden();
+  await expect(page.locator("#helpers")).toContainText("Local knowledge carries the question.");
+  await expect(page.locator("#hermes-status")).toHaveText("Research · Offline");
+  const promptTop = await page.evaluate(() => {
+    window.scrollTo(0, 0);
+    return document.getElementById("prompt").getBoundingClientRect().top;
+  });
+  expect(promptTop).toBeGreaterThanOrEqual(0);
+});
+
+test("a long answer stays at the top of its pane and follows only when pinned", async ({ page }) => {
+  const lines = Array.from({ length: 40 }, (_, index) => `Line ${index + 1} of the answer stays in the pane.`);
+  await page.route("**/research/ask", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema: "galion-research/1",
+        status: "Returned",
+        question: "A long one",
+        reply: lines.join("\n"),
+        citations: [],
+        found: [],
+        inferred: [],
+        unknown: [],
+        helpers: "Helpers are quiet.",
+      }),
+    }),
+  );
+  await page.setViewportSize({ width: 390, height: 640 });
+  await page.goto("/research");
+  await page.locator("#prompt").fill("A long one");
+  await page.locator("#prompt").press("Enter");
+  await expect(page.locator("#reading-body")).toContainText("Line 1 of the answer");
+  await expect(page.locator("#reading")).toBeInViewport();
+  await expect(page.locator("#prompt")).toBeInViewport();
+  const parked = await page.locator("#reading").evaluate((el) => ({
+    top: el.scrollTop,
+    taller: el.scrollHeight > el.clientHeight + 20,
+  }));
+  expect(parked.top).toBe(0);
+  expect(parked.taller).toBe(true);
+
+  await page.locator("#reading").evaluate((el) => {
+    el.scrollTop = el.scrollHeight;
+    el.dispatchEvent(new Event("scroll"));
+  });
+  const atEnd = await page.locator("#reading").evaluate((el) => el.scrollTop);
+  await page.locator("#reading-body").evaluate((el) => {
+    el.appendChild(document.createTextNode("\nA further line arrives."));
+  });
+  await expect.poll(() => page.locator("#reading").evaluate((el) => el.scrollTop)).toBeGreaterThan(atEnd);
+
+  await page.locator("#reading").evaluate((el) => {
+    el.scrollTop = 24;
+    el.dispatchEvent(new Event("scroll"));
+  });
+  const middle = await page.locator("#reading").evaluate((el) => el.scrollTop);
+  await page.locator("#reading-body").evaluate((el) => {
+    el.appendChild(document.createTextNode("\nThis line should not pull the pane."));
+  });
+  expect(await page.locator("#reading").evaluate((el) => el.scrollTop)).toBe(middle);
+});
+
+test("a manual scroll is left alone when the answer arrives", async ({ page }) => {
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/research/ask", async (route) => {
+    await gate;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema: "galion-research/1",
+        status: "Returned",
+        question: "Hold still",
+        reply: "The answer arrives after the scroll.",
+        citations: [],
+        found: [],
+        inferred: [],
+        unknown: [],
+        helpers: "Helpers are quiet.",
+      }),
+    });
+  });
+  await page.setViewportSize({ width: 390, height: 640 });
+  await page.goto("/research");
+  await page.getByRole("button", { name: "Show interface" }).click();
+  await page.locator("#prompt").fill("Hold still");
+  await page.locator("#prompt").press("Enter");
+  await expect(page.locator("#loading")).toBeVisible();
+  await page.mouse.wheel(0, 160);
+  const parked = await page.evaluate(() => ({
+    y: window.scrollY,
+    height: document.documentElement.scrollHeight,
+  }));
+  release();
+  await expect(page.locator("#reading-body")).toHaveText("The answer arrives after the scroll.");
+  const after = await page.evaluate(() => ({
+    y: window.scrollY,
+    height: document.documentElement.scrollHeight,
+  }));
+  // The loading line can leave. That shortens the page. A jump to the answer would not.
+  expect(Math.abs(after.y - parked.y - (after.height - parked.height))).toBeLessThan(48);
+});
+
+test("an empty question stays an error in calm type", async ({ page }) => {
+  for (const viewport of [
+    { width: 360, height: 740 },
+    { width: 1280, height: 800 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/research");
+    await page.locator("#prompt").press("Enter");
+    await expect(page.locator("#error")).toHaveText("The question is empty.");
+    await expect(page.locator("#error")).toBeVisible();
+    await expect(page.locator("body")).toHaveAttribute("data-state", "error");
+    await expect(page.locator("#loading")).toBeHidden();
+    await expect(page.locator("#hermes-status")).toHaveText("Research · Error");
+    await expect(page.locator("#state-line")).not.toContainText("Offline");
+    const sample = await page.locator("#error").evaluate((el) => {
+      const color = getComputedStyle(el).color;
+      const ground = getComputedStyle(document.body).backgroundColor;
+      return { color, ground };
+    });
+    const ink = parseRgb(sample.color);
+    const ground = parseRgb(sample.ground);
+    expect(ink, sample.color).not.toBeNull();
+    expect(ground, sample.ground).not.toBeNull();
+    expect(contrast(ink, ground)).toBeGreaterThanOrEqual(4.5);
+  }
 });
