@@ -138,6 +138,21 @@ describe("readUpload", () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+
+  it("marks a binary file when the text budget is already spent", async () => {
+    const { root, dir } = await scratch();
+    try {
+      const full = await stored(dir, "full.txt", Buffer.alloc(HANDED_BYTES, 0x43));
+      const bin = await stored(dir, "tail.bin", Buffer.from([0x00, 0x01, 0x02]));
+      const spent = await readHanded([full, bin], dir);
+      assert.equal(spent[0].content.shown, HANDED_BYTES);
+      assert.equal(spent[1].content.binary, true);
+      assert.equal(spent[1].content.text, "");
+      assert.equal(spent[1].content.shown, 0);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("handedMessage", () => {
