@@ -5,7 +5,11 @@ import { randomBytes } from "node:crypto";
 
 import { isLoopback } from "./hermes.js";
 
-const PUBLIC_ORIGINS = new Set(["https://galion.app", "https://www.galion.app"]);
+const PUBLIC_ORIGINS = new Set([
+  "https://galion.app",
+  "https://www.galion.app",
+  "https://research.galion.app",
+]);
 
 function oneHeader(headers, name) {
   if (!headers || typeof headers !== "object") return "";

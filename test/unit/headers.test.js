@@ -36,6 +36,8 @@ describe("post origin", () => {
     assert.equal(postOriginAllowed({ host: "127.0.0.1:8787", origin: "http://127.0.0.1:8787" }), true);
     assert.equal(postOriginAllowed({ host: "127.0.0.1:8787", origin: "https://galion.app" }), true);
     assert.equal(postOriginAllowed({ host: "galion.app", origin: "https://www.galion.app" }), true);
+    assert.equal(postOriginAllowed({ host: "research.galion.app", origin: "https://research.galion.app" }), true);
+    assert.equal(postOriginAllowed({ host: "127.0.0.1:8787", origin: "https://research.galion.app" }), true);
     assert.equal(postOriginAllowed({ host: "127.0.0.1:8787", origin: "http://127.0.0.1:9999" }), false);
     assert.equal(postOriginAllowed({ host: "galion.app", origin: "https://evil.example" }), false);
     assert.equal(postOriginAllowed({ host: "galion.app", origin: "null" }), false);

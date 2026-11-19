@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import http from "node:http";
 import { fileURLToPath } from "node:url";
 
+import { withAnswerSurface } from "./answer.js";
 import { HELPERS_OFFLINE, createDesk } from "./desk.js";
 import {
   acceptAnswer,
@@ -38,14 +39,16 @@ import {
   questionLength,
   rateLimitsFromEnv,
 } from "./limits.js";
-import { UPLOAD_FORM, UPLOAD_NAME, parseMultipart, removeUploads, uploadDir } from "./uploads.js";
+import { UPLOAD_FORM, UPLOAD_NAME, parseMultipart, readHanded, removeUploads, uploadDir } from "./uploads.js";
 
 export { BODY_LIMIT, QUESTION_LIMIT };
 
 export const BIND_HOST = "127.0.0.1";
 export const DEFAULT_PORT = 8787;
 
-const PAGE = withWireIndicator(readFileSync(fileURLToPath(new URL("../public/research.html", import.meta.url)))).toString("utf8");
+const PAGE = withAnswerSurface(
+  withWireIndicator(readFileSync(fileURLToPath(new URL("../public/research.html", import.meta.url)))).toString("utf8"),
+);
 
 const ALLOW = Object.freeze({
   "/favicon.ico": "GET",
@@ -59,6 +62,7 @@ const ALLOW = Object.freeze({
   "/research/hermes": "GET",
   "/research/history": "GET",
   "/research/sources": "GET",
+  "/research/progress": "GET",
   "/research/ask": "POST",
 });
 
@@ -344,6 +348,21 @@ export function createApp(env = process.env) {
       return;
     }
 
+    if (method === "GET" && path === "/research/progress") {
+      json(res, 200, desk.progressBody(sessionId));
+      return;
+    }
+
+    async function whileAsking(work) {
+      const token = desk.beginProgress(sessionId);
+      const mark = { calls: 0 };
+      try {
+        return await work(mark);
+      } finally {
+        desk.endProgress(sessionId, token, mark.calls);
+      }
+    }
+
     if (multipart) {
       const dir = uploadDir(env);
       let parsed;
@@ -362,7 +381,13 @@ export function createApp(env = process.env) {
         json(res, tooLarge ? 413 : 400, errorBody(tooLarge ? "too-large" : "empty", tooLarge ? QUESTION_TOO_LONG : EMPTY_QUESTION));
         return;
       }
-      const body = await desk.ask(question, sessionId, parsed.files);
+      const body = await whileAsking(async (mark) => {
+        // The desk reads its own private upload back by random id. Hermes gets text, never a path.
+        const handed = hermes.attached ? await readHanded(parsed.files, dir) : parsed.files;
+        const asked = await desk.ask(question, sessionId, handed);
+        if (asked && asked.status === "Returned") mark.calls = 1;
+        return asked;
+      });
       if (hermes.key && JSON.stringify(body).includes(hermes.key)) {
         await removeUploads(parsed.files, dir);
         const local = localKnowledge("");
@@ -412,23 +437,34 @@ export function createApp(env = process.env) {
         fail(413, "too-large", QUESTION_TOO_LONG);
         return;
       }
-      const proxied = await fromUpstream("/research/ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
-      }, wire.askTimeoutMs);
-      if (proxied && proxied.state === "http" && proxied.status === 400) {
-        sendProxied(res, proxied);
-        return;
-      }
-      if (proxied && proxied.state === "http" && proxied.status >= 200 && proxied.status < 300) {
-        const accepted = acceptedJson("answer", proxied.text);
-        if (accepted) {
-          json(res, 200, accepted);
-          return;
+      const body = await whileAsking(async (mark) => {
+        const proxied = hermes.attached
+          ? null
+          : await fromUpstream(
+              "/research/ask",
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ question }),
+              },
+              wire.askTimeoutMs,
+            );
+        if (proxied && proxied.state === "http" && proxied.status === 400) {
+          sendProxied(res, proxied);
+          return null;
         }
-      }
-      const body = await desk.ask(question, sessionId);
+        if (proxied && proxied.state === "http" && proxied.status >= 200 && proxied.status < 300) {
+          const accepted = acceptedJson("answer", proxied.text);
+          if (accepted) {
+            json(res, 200, accepted);
+            return null;
+          }
+        }
+        const asked = await desk.ask(question, sessionId);
+        if (asked && asked.status === "Returned") mark.calls = 1;
+        return asked;
+      });
+      if (!body) return;
       if (hermes.key && JSON.stringify(body).includes(hermes.key)) {
         const local = localKnowledge("");
         json(res, 200, {
