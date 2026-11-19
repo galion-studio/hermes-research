@@ -89,6 +89,7 @@ body{min-height:100vh;min-height:100dvh;
   transform:translateY(-200%)}
 .skip:focus{transform:none}
 :where(a,button,input):focus-visible{outline:2px solid var(--focus);outline-offset:3px}
+#reading:focus-visible,#sources:focus-visible{outline:2px solid var(--focus);outline-offset:3px}
 .ask{display:flex;align-items:center;gap:22px}
 .field{position:relative;flex:1;min-width:0;border-radius:32px;border:1px solid transparent;padding:26px 26px 14px;
   background:
@@ -358,7 +359,7 @@ body[data-theme="ocean"]{
   <p class="price" id="price">Ultra $220/€220 per month</p>
   <p id="helpers" hidden aria-live="polite">Helpers are quiet.</p>
   <p id="loading" role="status" hidden>Reading the question.</p>
-  <p id="error" role="alert" hidden></p>
+  <p id="error" role="alert" aria-live="assertive" aria-atomic="true" hidden></p>
   <div class="work" id="work">
     <section class="panel" id="sources" aria-labelledby="sources-label">
       <h2 id="sources-label">Sources</h2>
@@ -432,11 +433,11 @@ var SOUND_SET=RESEARCH_CUES;
 // The handoff from Galion One is voice-only. The disc is Ice, Sky, and Ocean. No letter is drawn on it.
 var MARK={core:"#58C4FF",edge:"#0B5FA5",ice:"#B8E8FF",stroke:"rgba(184,232,255,0.55)",strokePx:1};
 var motionQuery=window.matchMedia("(prefers-reduced-motion: reduce)");
+var voiceLoop=0;
 function syncMotion(){
   document.documentElement.setAttribute("data-motion", motionQuery.matches?"reduce":"full");
+  if(!voiceLoop) voiceLoop=requestAnimationFrame(paintVoice);
 }
-syncMotion();
-if(motionQuery.addEventListener) motionQuery.addEventListener("change", syncMotion);
 function markInner(warm){
   var w=Math.max(0,Math.min(1,warm));
   return [Math.round(184-96*w), Math.round(232-36*w), 255];
@@ -449,7 +450,7 @@ function paintVoice(){
   var W=Math.max(2, Math.round(css*dpr));
   if(voiceCv.width!==W||voiceCv.height!==W){ voiceCv.width=W; voiceCv.height=W; }
   var listening=document.getElementById("voice").getAttribute("aria-pressed")==="true";
-  var reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var reduce=document.documentElement.getAttribute("data-motion")==="reduce";
   var breath=reduce?0:Math.sin(((now-voiceT0)%1600)/1600*2*Math.PI);
   var aim=(listening?0.46:0.34)+(listening?0.01:0.012)*breath;
   if(reduce) voiceRad=aim;
@@ -472,9 +473,11 @@ function paintVoice(){
   voiceCx.fillStyle=g; voiceCx.beginPath(); voiceCx.arc(0,0,rad,0,2*Math.PI); voiceCx.fill();
   voiceCx.strokeStyle=MARK.stroke; voiceCx.lineWidth=MARK.strokePx; voiceCx.stroke();
   voiceCx.restore();
-  requestAnimationFrame(paintVoice);
+  if(reduce){ voiceLoop=0; return; }
+  voiceLoop=requestAnimationFrame(paintVoice);
 }
-requestAnimationFrame(paintVoice);
+syncMotion();
+if(motionQuery.addEventListener) motionQuery.addEventListener("change", syncMotion);
 var audio=null;
 function silenceOn(){
   return document.body.getAttribute("data-silence")==="on";
@@ -898,6 +901,51 @@ function tone(id){
     if(document.body.getAttribute("data-state")==="loading") return;
     commitQuestion();
   });
+})();
+(function(){
+  var reading=document.getElementById("reading");
+  var sources=document.getElementById("sources");
+  var body=document.getElementById("reading-body");
+  var errorEl=document.getElementById("error");
+  function tabStop(el){
+    return !!el.querySelector("a[href],button:not([disabled]),textarea:not([disabled]),select:not([disabled]),input:not([type='hidden']):not([disabled]),[tabindex='0']");
+  }
+  function syncRegion(el){
+    if(!el) return;
+    if(tabStop(el)){
+      if(el.hasAttribute("tabindex")) el.removeAttribute("tabindex");
+      return;
+    }
+    if(!el.hasAttribute("tabindex")) el.setAttribute("tabindex","0");
+  }
+  syncRegion(reading);
+  syncRegion(sources);
+  if(reading) new MutationObserver(function(){ syncRegion(reading); }).observe(reading,{childList:true,subtree:true});
+  if(sources) new MutationObserver(function(){ syncRegion(sources); }).observe(sources,{childList:true,subtree:true});
+  if(!body || !reading || !errorEl) return;
+  if(body.hasAttribute("aria-live") || reading.hasAttribute("aria-live")) return;
+  var live=document.createElement("p");
+  live.id="answer-live";
+  live.className="sr";
+  live.setAttribute("aria-live","polite");
+  live.setAttribute("aria-atomic","true");
+  errorEl.insertAdjacentElement("afterend", live);
+  var last="";
+  function announce(){
+    if(body.hasAttribute("aria-live") || reading.hasAttribute("aria-live")){
+      live.textContent="";
+      return;
+    }
+    var state=document.body.getAttribute("data-state");
+    if(state!=="offline" && state!=="ready") return;
+    var text=(body.textContent||"").replace(/\s+/g," ").trim();
+    if(!text || text===last) return;
+    last=text;
+    live.textContent="";
+    live.textContent=text;
+  }
+  new MutationObserver(announce).observe(body,{childList:true,characterData:true,subtree:true});
+  new MutationObserver(announce).observe(document.body,{attributes:true,attributeFilter:["data-state"]});
 })();
 </script>
 </body>

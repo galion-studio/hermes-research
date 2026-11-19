@@ -141,6 +141,12 @@ describe("page", () => {
       "--om-sky:#58C4FF",
       "--om-ocean:#0B5FA5",
       "Skip to ask",
+      'aria-live="assertive"',
+      'aria-atomic="true"',
+      'setAttribute("tabindex","0")',
+      'setAttribute("aria-live","polite")',
+      "answer-live",
+      "voiceLoop=0",
     ]) {
       assert.ok(html.includes(needle), `missing ${needle}`);
     }
