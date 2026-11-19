@@ -382,15 +382,22 @@ export async function readUpload(dir, file, cap = HANDED_BYTES) {
     if (typeof process.getuid === "function" && st.uid !== process.getuid()) return empty;
     if (process.platform !== "win32" && (st.mode & 0o077) !== 0) return empty;
     const limit = Math.max(0, Math.min(Number(cap) || 0, st.size));
-    const buf = Buffer.alloc(limit);
+    // A binary file does not spend the text budget. When that budget is already
+    // gone, still look through the handoff window for a null so the file is not
+    // described as clipped text. The probe is not handed on.
+    const inspect = limit > 0 ? limit : Math.min(st.size, HANDED_BYTES);
+    const buf = Buffer.alloc(inspect);
     let got = 0;
-    while (got < limit) {
-      const { bytesRead } = await fh.read(buf, got, limit - got, got);
+    while (got < inspect) {
+      const { bytesRead } = await fh.read(buf, got, inspect - got, got);
       if (!bytesRead) break;
       got += bytesRead;
     }
     const slice = buf.subarray(0, got);
     if (slice.includes(0)) return { ...empty, bytes: st.size, binary: true, ok: true };
+    if (limit === 0) {
+      return { text: "", bytes: st.size, shown: 0, truncated: st.size > 0, binary: false, ok: true };
+    }
     let text = new TextDecoder("utf-8", { fatal: false }).decode(slice);
     if (got < st.size) text = text.replace(/\uFFFD+$/, "");
     text = text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "");
