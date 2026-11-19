@@ -70,7 +70,7 @@ The `galion` user must already exist. This kit does not create the account.
 2. Copy `galion-research-linux-arm64` to `/opt/galion/research/release/<sha>/galion-research` and set mode `0755`. Copy `LICENSE` and `SHA256SUMS` beside it.
 3. `ln -sfn /opt/galion/research/release/<sha> /opt/galion/research/current`
 4. Copy `galion-research-pi5.service` to `/etc/systemd/system/galion-research-pi5.service`. `systemctl daemon-reload` when the unit file changes. Enable and start `galion-research-pi5` only if `galion-research.service` is not already bound to port 8787.
-5. On the Pi, `GET http://127.0.0.1:8787/health`. If Node happens to be installed, `node scripts/check-health.js 8787` is the same check. The desk does not need Node.
+5. On the Pi, `GET http://127.0.0.1:8787/health`. If Node happens to be installed, `node scripts/check-health.js 8787` is the same check. The desk does not need Node. The unit is `Type=notify`. systemd marks it started when the binary runs `systemd-notify --ready`. The health read is the same check.
 
 The optional environment file is `/etc/galion/research.env`, mode `0600`, owner `galion`. The key is written there, on the host. It is not in the archive. Responses say `key` is `set` or `none`.
 

@@ -245,18 +245,31 @@ export function researchTurn(config, user, handed = []) {
   const body = JSON.stringify({ model: config.model || LLM_NAME, messages });
   const timeout = config.timeoutMs || DEFAULT_TIMEOUT_MS;
 
+  const parent = config.signal;
   return new Promise((resolve) => {
     let settled = false;
     let incoming = null;
     let timer = null;
+    let req = null;
     const finish = (result) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      if (parent) parent.removeEventListener("abort", cancel);
       resolve(result);
     };
     const miss = (cause) => finish({ text: UNREACHABLE, citations: [], cause });
-    const req = http.request(
+    const cancel = () => {
+      incoming?.destroy();
+      req?.destroy();
+      miss("cancelled");
+    };
+    if (parent?.aborted) {
+      miss("cancelled");
+      return;
+    }
+    if (parent) parent.addEventListener("abort", cancel, { once: true });
+    req = http.request(
       {
         hostname: target.hostname,
         port: target.port,

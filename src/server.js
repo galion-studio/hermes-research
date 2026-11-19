@@ -1,6 +1,7 @@
 // Galion Research. The page, the galion-one-voice /research backend, and Hermes.
 // The gateway key is read from the environment inside the Hermes client. It is not logged.
 
+import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import http from "node:http";
@@ -217,8 +218,9 @@ function sendProxied(res, proxied) {
   json(res, status, errorBody("upstream", UPSTREAM_REFUSED));
 }
 
-export function createApp(env = process.env) {
+export function createApp(env = process.env, life = {}) {
   const hermes = configFromEnv(env);
+  if (life.signal) hermes.signal = life.signal;
   const desk = createDesk(hermes);
   const wire = forwardConfig(env);
   const one = wire.openmind.origin
@@ -229,7 +231,7 @@ export function createApp(env = process.env) {
   async function fromUpstream(path, init, timeoutMs = wire.timeoutMs) {
     if (!wire.voice.forward) return null;
     try {
-      const result = await exchange(wire.voice.forward, path, init, timeoutMs);
+      const result = await exchange(wire.voice.forward, path, init, timeoutMs, life.signal);
       if (result.overflow) return { state: "malformed" };
       if (leaksKey(result.text, hermes.key)) return { state: "malformed" };
       return { state: "http", status: result.status, text: result.text };
@@ -245,6 +247,10 @@ export function createApp(env = process.env) {
   }
 
   return async function handle(req, res) {
+    if (life.signal?.aborted) {
+      json(res, 503, errorBody("closed", "Galion Research is stopping."));
+      return;
+    }
     const url = new URL(req.url || "/", "http://127.0.0.1");
     const path = url.pathname;
     const method = req.method || "GET";
@@ -496,7 +502,26 @@ export function createApp(env = process.env) {
 
 export function start(options = {}) {
   const env = options.env || process.env;
-  const server = http.createServer(createApp(env));
+  const stop = new AbortController();
+  const pending = new Set();
+  const handle = createApp(env, { signal: stop.signal });
+  const server = http.createServer((req, res) => {
+    const task = Promise.resolve(handle(req, res));
+    pending.add(task);
+    task.finally(() => pending.delete(task));
+  });
+  let shutting = null;
+  server.shutdown = () => {
+    if (shutting) return shutting;
+    stop.abort();
+    shutting = (async () => {
+      await Promise.allSettled([...pending]);
+      await new Promise((resolve) => setImmediate(resolve));
+      if (typeof server.closeIdleConnections === "function") server.closeIdleConnections();
+      await new Promise((resolve) => server.close(() => resolve()));
+    })();
+    return shutting;
+  };
   const { host, port } = listenTarget(options, env);
   return new Promise((resolve, reject) => {
     const onError = (err) => reject(err);
@@ -508,10 +533,63 @@ export function start(options = {}) {
   });
 }
 
+// Same wait as scripts/check-health.js. Not a product limit.
+const NOTIFY_MS = 2_000;
+
+function signalSystemd(arg, env) {
+  if (!env || !env.NOTIFY_SOCKET) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (ok) => {
+      if (settled) return;
+      settled = true;
+      resolve(ok);
+    };
+    const child = spawn("systemd-notify", [arg], {
+      env,
+      stdio: "ignore",
+      signal: AbortSignal.timeout(NOTIFY_MS),
+    });
+    child.on("error", () => done(false));
+    child.on("close", (code) => done(code === 0));
+  });
+}
+
+export async function run(options = {}) {
+  const env = options.env || process.env;
+  let server;
+  try {
+    server = await start(options);
+  } catch {
+    console.error("Galion Research could not listen.");
+    process.exit(1);
+  }
+  let stopping = false;
+  const stop = () => {
+    if (stopping) return;
+    stopping = true;
+    console.log("Galion Research is stopping.");
+    Promise.resolve()
+      .then(() => server.shutdown())
+      .then(() => signalSystemd("STOPPING=1", env))
+      .then(
+        () => process.exit(0),
+        () => process.exit(0),
+      );
+  };
+  process.once("SIGTERM", stop);
+  process.once("SIGINT", stop);
+  console.log("Galion Research is ready.");
+  if (env.NOTIFY_SOCKET && !stopping) {
+    const ok = await signalSystemd("--ready", env);
+    if (!ok && !stopping) {
+      console.error("Galion Research could not signal readiness.");
+      process.exit(1);
+    }
+  }
+}
+
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain) {
-  start().then((server) => {
-    const address = server.address();
-    console.log(`Galion Research http://${address.address}:${address.port}/research`);
-  });
+  run();
 }

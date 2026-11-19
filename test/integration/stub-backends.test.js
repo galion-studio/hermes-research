@@ -2,11 +2,14 @@
 // desk all listen on 127.0.0.1. No public host is dialed and no model is paid for.
 
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import http from "node:http";
 import { mkdtemp, readdir, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { HELPERS_OFFLINE } from "../../src/desk.js";
 import { BODY_LIMIT } from "../../src/limits.js";
@@ -16,6 +19,51 @@ import { sessionToken, start } from "../../src/server.js";
 const KEY = "test-gateway-key-not-for-git";
 const SLOW_MS = 8_000;
 const PATIENCE_MS = 4_000;
+const SERVER = fileURLToPath(new URL("../../src/server.js", import.meta.url));
+const HEALTH = fileURLToPath(new URL("../../scripts/check-health.js", import.meta.url));
+
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const probe = http.createServer();
+    probe.once("error", reject);
+    probe.listen(0, "127.0.0.1", () => {
+      const { port } = probe.address();
+      probe.close(() => resolve(port));
+    });
+  });
+}
+
+function spawnServer(env) {
+  const child = spawn(process.execPath, [SERVER], { env, stdio: ["ignore", "pipe", "pipe"] });
+  let stdout = "";
+  let stderr = "";
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk;
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk;
+  });
+  return {
+    child,
+    logs: () => ({ stdout, stderr }),
+  };
+}
+
+function childExit(child) {
+  if (child.exitCode != null) return Promise.resolve(child.exitCode);
+  return new Promise((resolve) => child.once("exit", (code) => resolve(code)));
+}
+
+async function until(fn, ms = PATIENCE_MS) {
+  const started = Date.now();
+  while (Date.now() - started < ms) {
+    if (await fn()) return;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  throw new Error("timed out");
+}
 
 function listen(server) {
   return new Promise((resolve, reject) => {
@@ -592,6 +640,150 @@ describe("research server against stub hermes and stub voice", () => {
       });
     } finally {
       await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("linux process lifecycle", () => {
+  it("logs one ready line, signals systemd, and the health check is that readiness", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "galion-notify-"));
+    const sock = join(dir, "notify.sock");
+    const py = spawn(
+      "python3",
+      [
+        "-c",
+        "import socket,os,sys\npath=sys.argv[1]\n\ntry:\n os.unlink(path)\nexcept FileNotFoundError:\n pass\ns=socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)\ns.bind(path)\ns.settimeout(8)\nwhile True:\n try:\n  sys.stdout.write(s.recv(256).decode()+'\\n')\n  sys.stdout.flush()\n except socket.timeout:\n  break\n",
+        sock,
+      ],
+      { stdio: ["ignore", "pipe", "pipe"] },
+    );
+    let datagrams = "";
+    py.stdout.setEncoding("utf8");
+    py.stdout.on("data", (chunk) => {
+      datagrams += chunk;
+    });
+    const port = await freePort();
+    let desk = null;
+    try {
+      await until(() => existsSync(sock));
+      desk = spawnServer({
+        PATH: process.env.PATH,
+        PORT: String(port),
+        NOTIFY_SOCKET: sock,
+        GALION_LLM_KEY: KEY,
+      });
+      await until(() => datagrams.includes("READY=1"));
+      const checked = await new Promise((resolve) => {
+        const child = spawn(process.execPath, [HEALTH, String(port)], { stdio: ["ignore", "pipe", "pipe"] });
+        let stdout = "";
+        let stderr = "";
+        child.stdout.setEncoding("utf8");
+        child.stderr.setEncoding("utf8");
+        child.stdout.on("data", (chunk) => {
+          stdout += chunk;
+        });
+        child.stderr.on("data", (chunk) => {
+          stderr += chunk;
+        });
+        child.once("exit", (code) => resolve({ code, stdout, stderr }));
+      });
+      assert.equal(checked.code, 0, checked.stderr);
+      assert.match(checked.stdout, new RegExp(`ok http://127\\.0\\.0\\.1:${port}/health`));
+      const before = desk.logs();
+      assert.equal(before.stdout, "Galion Research is ready.\n");
+      assert.equal(before.stderr, "");
+      assert.equal(before.stdout.includes(KEY), false);
+      assert.equal(datagrams.includes(KEY), false);
+      desk.child.kill("SIGTERM");
+      const code = await childExit(desk.child);
+      assert.equal(code, 0);
+      await until(() => datagrams.includes("STOPPING=1"));
+      const after = desk.logs();
+      assert.equal(after.stdout, "Galion Research is ready.\nGalion Research is stopping.\n");
+      assert.equal(after.stderr, "");
+      assert.equal(after.stdout.includes(KEY), false);
+      assert.equal(after.stdout.includes(sock), false);
+    } finally {
+      if (desk && desk.child.exitCode == null) desk.child.kill("SIGKILL");
+      py.kill("SIGKILL");
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("logs one line when it cannot listen and does not print the key", async () => {
+    const desk = spawnServer({
+      PATH: process.env.PATH,
+      PORT: "70000",
+      GALION_LLM_KEY: KEY,
+    });
+    try {
+      const code = await childExit(desk.child);
+      assert.equal(code, 1);
+      const { stdout, stderr } = desk.logs();
+      assert.equal(stdout, "");
+      assert.equal(stderr, "Galion Research could not listen.\n");
+      assert.equal(stderr.includes(KEY), false);
+    } finally {
+      if (desk.child.exitCode == null) desk.child.kill("SIGKILL");
+    }
+  });
+
+  it("logs one line when systemd readiness fails and does not print the key", async () => {
+    const port = await freePort();
+    const desk = spawnServer({
+      PATH: process.env.PATH,
+      PORT: String(port),
+      NOTIFY_SOCKET: join(tmpdir(), "galion-notify-missing.sock"),
+      GALION_LLM_KEY: KEY,
+    });
+    try {
+      const code = await childExit(desk.child);
+      assert.equal(code, 1);
+      const { stdout, stderr } = desk.logs();
+      assert.equal(stdout, "Galion Research is ready.\n");
+      assert.equal(stderr, "Galion Research could not signal readiness.\n");
+      assert.equal(`${stdout}${stderr}`.includes(KEY), false);
+      assert.equal(stderr.includes("NOTIFY_SOCKET"), false);
+    } finally {
+      if (desk.child.exitCode == null) desk.child.kill("SIGKILL");
+    }
+  });
+
+  it("cancels an in-flight ask on SIGTERM and still answers from local knowledge", async () => {
+    const hermes = await stubChat({ delayMs: 30_000, content: "This slow hermes reply should not be read." });
+    const port = await freePort();
+    const desk = spawnServer({
+      PATH: process.env.PATH,
+      PORT: String(port),
+      GALION_LLM: "hermes",
+      GALION_LLM_URL: hermes.url,
+      GALION_LLM_KEY: KEY,
+      GALION_LLM_TIMEOUT_MS: "20000",
+    });
+    try {
+      const base = `http://127.0.0.1:${port}`;
+      await until(() => desk.logs().stdout.includes("Galion Research is ready."));
+      const question = "Who are you?";
+      const pending = ask(base, question);
+      await until(() => hermes.calls.length >= 1);
+      const started = Date.now();
+      desk.child.kill("SIGTERM");
+      const asked = await pending;
+      const elapsed = Date.now() - started;
+      assert.ok(elapsed < PATIENCE_MS, `cancelled ask took ${elapsed}ms`);
+      assert.equal(asked.response.status, 200);
+      assertOffline(asked.data, question);
+      assert.equal(asked.text.includes("should not be read"), false);
+      assert.equal(asked.text.includes(KEY), false);
+      const code = await childExit(desk.child);
+      assert.equal(code, 0);
+      const { stdout, stderr } = desk.logs();
+      assert.match(stdout, /Galion Research is ready\.\nGalion Research is stopping\.\n/);
+      assert.equal(stderr, "");
+      assert.equal(`${stdout}${stderr}`.includes(KEY), false);
+    } finally {
+      if (desk.child.exitCode == null) desk.child.kill("SIGKILL");
+      await hermes.close();
     }
   });
 });

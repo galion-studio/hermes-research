@@ -9,7 +9,10 @@ After=network.target
 Documentation=file:/opt/galion/research/current/docs/DEPLOY.md
 
 [Service]
-Type=simple
+Type=notify
+NotifyAccess=main
+# Readiness is systemd-notify --ready after the listener is up.
+# scripts/check-health.js is the same check. It does not start the process.
 User=galion
 Group=galion
 WorkingDirectory=/opt/galion/research/current
