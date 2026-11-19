@@ -20,6 +20,18 @@ jobs:
         run: npm test
       - name: stub hermes and voice integration
         run: node --test --test-reporter=spec test/integration/stub-backends.test.js
+      - name: cold start and resident memory
+        run: |
+          node scripts/measure-start.js | tee "$RUNNER_TEMP/start-measure.txt"
+          {
+            echo "### CI runner, not a Pi 5"
+            echo
+            echo "Cold start is the time from spawning the server until GET /health returns 200. Resident memory is VmRSS at that moment. These numbers were measured on this GitHub-hosted runner. They are not a Raspberry Pi 5 result."
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/start-measure.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   playwright:
     runs-on: ubuntu-24.04
