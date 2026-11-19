@@ -76,7 +76,7 @@ describe("pi seed", () => {
     assert.match(workflow, /gcc-aarch64-linux-gnu/);
     assert.match(workflow, /scripts\/pi-seed\/smoke\.js/);
     assert.match(workflow, /scripts\/pi-seed\/build\.js/);
-    assert.match(workflow, /upload-artifact@v4/);
+    assert.match(workflow, /actions\/upload-artifact@[0-9a-f]{40} # v4\.6\.2/);
     assert.match(workflow, /research-pi5-seed-/);
     assert.match(workflow, new RegExp(NODE_VERSION));
     assert.match(workflow, /if-no-files-found: error/);
