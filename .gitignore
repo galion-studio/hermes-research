@@ -10,3 +10,7 @@ e2e/artifacts/
 *.ogg
 *.flac
 *.m4a
+*.pem
+*.key
+dist/
+build/
